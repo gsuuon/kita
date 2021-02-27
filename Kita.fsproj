@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="Core/Providers/Config.fs" />
+        <Compile Include="Core/Providers/Default/Local.fs" />
+        <Compile Include="Core/Providers/Default/Azure.fs" />
+        <Compile Include="Core/CloudResource.fs" />
+        <Compile Include="Core/Resources/CloudLog.fs" />
+        <Compile Include="Core/Resources/CloudZero.fs" />
+        <Compile Include="Core/Resources/Collections/CloudTask.fs" />
+        <Compile Include="Core/Resources/Collections/CloudMap.fs" />
+        <Compile Include="Core/Resources/Collections/CloudQueue.fs" />
+        <Compile Include="Core/Http.fs" />
+        <Compile Include="Core/Infra.fs" />
+        <Compile Include="Teardown.fs" />
+        <Compile Include="Deploy.fs" />
+        <Compile Include="Test/Test.fs" />
+    </ItemGroup>
+
+</Project>
