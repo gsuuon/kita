@@ -4,7 +4,7 @@ open Kita.Core.Http
 open Kita.Core.Providers
 open Kita.Core.Resources
 
-type State =
+type Managed =
   { resources : CloudResource list
     handlers : (string * MethodHandler) list
     names : string list }
@@ -13,7 +13,7 @@ type State =
         handlers = []
         names = []}
 
-type State<'a> = | State of (State -> 'a * State)
+type State<'a> = | State of (Managed -> 'a * Managed)
 type Resource<'T when 'T :> CloudResource> = | Resource of 'T
 
 [<AutoOpen>]
@@ -55,7 +55,7 @@ type Infra (name: string, config: Config) =
 
         m s
 
-    member _.Bind (nested: State -> State, f) =
+    member _.Bind (nested: Managed -> Managed, f) =
         State <| fun s ->
             let s = nested s
             let (State m) = f ()
@@ -70,7 +70,7 @@ type Infra (name: string, config: Config) =
     member _.Zero () =
         State <| fun _ ->
 
-        (), State.Empty
+        (), Managed.Empty
 
     member _.Return x = ret x
     member _.Yield x = ret x

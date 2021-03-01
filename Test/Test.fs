@@ -84,6 +84,6 @@ let cloudMain = infra "main" {
 
 let program debug =
     // Composing
-    State.Empty
+    Managed.Empty
     |> cloudProcs debug
     |> cloudMain
