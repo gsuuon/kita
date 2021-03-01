@@ -10,8 +10,7 @@
         <Compile Include="Core/Providers/Default/Azure.fs" />
         <Compile Include="Core/CloudResource.fs" />
         <Compile Include="Core/Resources/CloudLog.fs" />
-        <Compile Include="Core/Resources/CloudZero.fs" />
-        <Compile Include="Core/Resources/Collections/CloudTask.fs" />
+        <Compile Include="Core/Resources/CloudTask.fs" />
         <Compile Include="Core/Resources/Collections/CloudMap.fs" />
         <Compile Include="Core/Resources/Collections/CloudQueue.fs" />
         <Compile Include="Core/Http.fs" />
@@ -19,6 +18,7 @@
         <Compile Include="Teardown.fs" />
         <Compile Include="Deploy.fs" />
         <Compile Include="Test/Test.fs" />
+        <Compile Include="Scratch/Builder.fs" />
     </ItemGroup>
 
 </Project>
