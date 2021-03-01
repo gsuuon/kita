@@ -9,7 +9,7 @@ type CloudResource =
     abstract member ReportDesiredState : Config -> unit
     abstract member BeginActivation : Config -> unit
 
-module CloudOption =
+module ResourceOptions =
     type Persist =
         | ByName of string
         | ByPosition
