@@ -19,6 +19,12 @@ type CloudQueue<'T> () =
     member private _.Teardown config = ()
 
     member _.Enqueue item = ()
+    member _.Enqueue (xs: 'T list) = 
+        async { return () }
+    member _.Dequeue () =
+        async { return Unchecked.defaultof<'T> }
+    member _.Dequeue count =
+        async { return [Unchecked.defaultof<'T>] }
 
     interface CloudResource with
         member _.CBind () = ()
