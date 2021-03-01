@@ -14,6 +14,7 @@
         <Compile Include="Core/Resources/Collections/CloudMap.fs" />
         <Compile Include="Core/Resources/Collections/CloudQueue.fs" />
         <Compile Include="Core/Http.fs" />
+        <Compile Include="Core/HttpHelpers.fs" />
         <Compile Include="Core/Infra.fs" />
         <Compile Include="Operations.fs" />
         <Compile Include="Test/Test.fs" />
