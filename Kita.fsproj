@@ -6,8 +6,6 @@
 
     <ItemGroup>
         <Compile Include="Core/Providers/Config.fs" />
-        <Compile Include="Core/Providers/Default/Local.fs" />
-        <Compile Include="Core/Providers/Default/Azure.fs" />
         <Compile Include="Core/CloudResource.fs" />
         <Compile Include="Core/Resources/CloudLog.fs" />
         <Compile Include="Core/Resources/CloudTask.fs" />
