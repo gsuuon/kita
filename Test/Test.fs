@@ -56,12 +56,12 @@ let cloudProcs debug = infra "procs" {
 let cloudMain = infra "main" {
     let! pendingSaves = CloudQueue()
     let! readySaves = CloudQueue()
-    let! myMap = CloudMap()
+    let! saves = CloudMap()
     let! klog = CloudLog()
 
     pendingSaves.NewMessage.Add
     <| fun msg ->
-        (printfn "Got %s" msg)
+        (klog.Info <| sprintf "Got %s" msg)
 
     proc (async {
         while true do
@@ -72,13 +72,24 @@ let cloudMain = infra "main" {
 
     route "save" [
         GET <| fun req -> async {
+            match! saves.TryFind req.body with
+            | Some s ->
+                return { status = OK; body = s }
+            | None ->
+                return { status = NOTFOUND; body = "🤷" } }
+                
+
+        POST <| fun req -> async {
             pendingSaves.Enqueue req.body
-            return { status = OK; body = "Hi " + req.body } }
+            return { status = OK; body = "You're in" } }
     ]
 
     route "sign_in" [
         POST <| fun req -> async {
-            return { status = OK; body = "You're in" } }
+            if req.body.Length > 0 then
+                return { status = OK; body = "You're in" }
+            else
+                return { status = NOTFOUND; body = "Who are you?" } }
     ]
 }
 
