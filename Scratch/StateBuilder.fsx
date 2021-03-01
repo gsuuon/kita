@@ -42,7 +42,12 @@ module State =
                 let (State f) = f()
                 f s )
 
-        member _.ReturnFrom m =
+        member _.Run (State m) =
+            fun s ->
+                let (_x, s) = m s
+                s
+
+        member _.ReturnFrom (State m) =
             m
 
         member _.Yield x = ret x
@@ -58,18 +63,16 @@ module State =
 
     let state = Builder()
 
-    let getEnv = State (fun s -> s, s)
+    let getState = State (fun s -> s, s)
 
 let y =
     0
-    |>
-    run (state {
-        let! x = getEnv
+    |> (state {
+        let! x = getState
         let! y = ret "hi"
         let! f = { foo = 0 }
         printfn "%i" (x + 1)
         printfn "%s" (y)
         printfn "%A" f
         custom "hi"
-        return x
     })
