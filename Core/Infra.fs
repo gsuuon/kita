@@ -59,7 +59,13 @@ type Infra (name: string, config: Config) =
         State <| fun s ->
             let s = nested s
             let (State m) = f ()
-            printfn "Bind inner infra: %s" <| nameof nested
+
+            match List.tryLast s.names with
+            | Some innerName ->
+                printfn "Bind inner infra: %s" innerName
+            | None ->
+                printfn "Bind inner anonymous"
+
             m s
 
     member _.Combine(stateA, stateB) =
