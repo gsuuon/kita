@@ -17,6 +17,9 @@ module Cfg =
 module Ops =
     type Conf = class end
     
-    let inline deploy< ^C, ^R when ^R : (member Deploy : ^C -> unit) and ^C :> Config> (resource: ^R, config: ^C)
+    let inline deploy< ^C, ^R
+                        when ^R : (member Deploy : ^C -> unit)
+                        and ^C :> Config>
+        (resource: ^R, config: ^C)
         =
         ( ^R : (member Deploy: ^C -> unit) (resource, config) )
