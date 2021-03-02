@@ -1,6 +1,7 @@
 namespace Kita.Core.Resources
 
 open Kita.Core
+open Kita.Core.Providers.Default
 
 type CloudLog() =
     let activated = false
@@ -8,6 +9,11 @@ type CloudLog() =
     member _.Info = printfn "%s"
     member _.Warn = printfn "%s"
     member _.Error = printfn "%s"
+
+    member _.Deploy (az: Aws) =
+        printfn "Deploy: Aws Log"
+    member _.Deploy (az: Az) =
+        printfn "Deploy: Azure Log"
 
     interface CloudResource with
         member _.CBind () = ()

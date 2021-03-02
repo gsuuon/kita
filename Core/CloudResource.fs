@@ -1,4 +1,4 @@
-namespace Kita.Core
+namespace Kita.Core.Resource
 
 open Kita.Core.Providers
 
@@ -9,7 +9,14 @@ type CloudResource =
     abstract member ReportDesiredState : Config -> unit
     abstract member BeginActivation : Config -> unit
 
-module ResourceOptions =
+module Cfg =
     type Persist =
         | ByName of string
         | ByPosition
+
+module Ops =
+    type Conf = class end
+    
+    let inline deploy< ^C, ^R when ^R : (member Deploy : ^C -> unit) and ^C :> Config> (resource: ^R, config: ^C)
+        =
+        ( ^R : (member Deploy: ^C -> unit) (resource, config) )

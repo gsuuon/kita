@@ -2,7 +2,7 @@ namespace Kita.Core
 
 open Kita.Core.Http
 open Kita.Core.Providers
-open Kita.Core.Resources
+open Kita.Core.Resource
 
 type Managed =
   { resources : CloudResource list
@@ -31,21 +31,21 @@ module State =
 
     let ret x = State (fun s -> x, s)
 
-type Infra (name: string, config: Config) =
-    new (config: Config) = Infra("anon", config)
-
-    member _.Bind (resource: #CloudResource, f)
+type Infra< ^T when ^T :> Config> (name: string, config: ^T) =
+    (* new (config: 'T) = Infra("anon", config) *)
+        
+    member inline _.Bind (resource: #CloudResource, f)
         =
         State <| fun s ->
 
         let (State runner) = f resource
-        resource.BeginActivation config
-        
+
+        Ops.deploy (resource, config)
         printfn "Bind resource: %A" resource
 
         runner s
 
-    member _.Bind (State m, f) =
+    member inline _.Bind (State m, f) =
         State <| fun s ->
 
         let (x, s) = m s
@@ -55,7 +55,7 @@ type Infra (name: string, config: Config) =
 
         m s
 
-    member _.Bind (nested: Managed -> Managed, f) =
+    member inline _.Bind (nested: Managed -> Managed, f) =
         State <| fun s ->
             let s = nested s
             let (State m) = f ()
@@ -68,25 +68,25 @@ type Infra (name: string, config: Config) =
 
             m s
 
-    member _.Combine(stateA, stateB) =
+    member inline _.Combine(stateA, stateB) =
       { resources = stateA.resources @ stateB.resources
         handlers = stateA.handlers @ stateB.handlers
         names = stateA.names @ stateB.names }
           
-    member _.Zero () =
+    member inline _.Zero () =
         State <| fun _ ->
 
         (), Managed.Empty
 
-    member _.Return x = ret x
-    member _.Yield x = ret x
-    member _.Delay f =
+    member inline _.Return x = ret x
+    member inline _.Yield x = ret x
+    member inline _.Delay f =
         State <| fun s ->
 
         let (State m) = f()
         m s
 
-    member _.Run (State m) =
+    member inline _.Run (State m) =
         fun s ->
 
         let (_x, s) = m s
@@ -94,7 +94,7 @@ type Infra (name: string, config: Config) =
         |> addName name
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
-    member _.Route (State runner,
+    member inline _.Route (State runner,
         [<ProjectionParameter>]pathWith,
         [<ProjectionParameter>]handlersWith)
         =
@@ -111,7 +111,7 @@ type Infra (name: string, config: Config) =
                 (List.map (fun x -> path, x) handlers)
 
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind=true)>]
-    member _.Proc (State runner,
+    member inline _.Proc (State runner,
         [<ProjectionParameter>]task: _ -> Async<unit>)
         =
         State <| fun s ->

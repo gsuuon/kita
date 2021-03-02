@@ -6,7 +6,9 @@ open Kita.Core.Http.Helpers
 open Kita.Core.Resources
 open Kita.Core.Resources.Collections
 
-let infra name = Infra (name, { name = "test"; deploy = "deploy" })
+let infra name = Infra (name, Providers.Default.Az() )
+(* let infra name = Infra (name, Providers.Default.Aws() ) *)
+    // Compile error for resources which don't support Aws
 
 let cloudAbout = infra "about" {
     route "about" [
@@ -46,10 +48,8 @@ let cloudProcs debug = infra "procs" {
 
     if debug then
         // Conditional
-        // Must be at end of infra block if custom operations
-        // (proc, route) are used
-
-        // Cannot be used with custom operations
+        // Must be after all custom operations (route, proc)
+        // Cannot contain custom operations
         do! cloudDebug
 }
 
@@ -78,7 +78,6 @@ let cloudMain = infra "main" {
             | None ->
                 return { status = NOTFOUND; body = "🤷" } }
                 
-
         POST <| fun req -> async {
             pendingSaves.Enqueue req.body
             return { status = OK; body = "You're in" } }
