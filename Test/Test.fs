@@ -6,7 +6,7 @@ open Kita.Core.Http.Helpers
 open Kita.Core.Resources
 open Kita.Core.Resources.Collections
 
-let infra name = Infra (name, Providers.Default.Az() )
+let internal infra name = Infra (name, Providers.Default.Az() )
 (* let infra name = Infra (name, Providers.Default.Aws() ) *)
     // Compile error for resources which don't support Aws
 

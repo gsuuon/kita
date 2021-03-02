@@ -31,9 +31,9 @@ module State =
 
     let ret x = State (fun s -> x, s)
 
-type Infra< ^T when ^T :> Config> (name: string, config: ^T) =
-    (* new (config: 'T) = Infra("anon", config) *)
-        
+type internal Infra< ^T when ^T :> Config> (name: string, config: ^T) =
+    (* new (config: ^T) = Infra("anon", config) *)
+
     member inline _.Bind (resource: #CloudResource, f)
         =
         State <| fun s ->
