@@ -1,6 +1,7 @@
 namespace Kita.Core.Resources.Collections
 
 open Kita.Core
+open Kita.Core.Resources
 open Kita.Core.Providers.Default
 
 type CloudMap<'K, 'V> () =

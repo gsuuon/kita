@@ -1,4 +1,4 @@
-namespace Kita.Core.Resource
+namespace Kita.Core.Resources
 
 open Kita.Core.Providers
 

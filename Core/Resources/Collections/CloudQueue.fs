@@ -3,6 +3,7 @@ namespace Kita.Core.Resources.Collections
 open System.Collections.Generic
 
 open Kita.Core
+open Kita.Core.Resources
 open Kita.Core.Providers.Default
 
 type CloudQueue<'T> () =

@@ -2,7 +2,7 @@ namespace Kita.Core
 
 open Kita.Core.Http
 open Kita.Core.Providers
-open Kita.Core.Resource
+open Kita.Core.Resources
 
 type Managed =
   { resources : CloudResource list
