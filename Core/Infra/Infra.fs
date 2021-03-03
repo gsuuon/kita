@@ -28,16 +28,16 @@ type Infra< ^Config
     member inline _.Bind (resource: #CloudResource, f)
         =
         State <| fun (s: Managed< ^Config>) ->
+
         print s "Resource" resource
-
         let (State runner) = f resource
-
         Ops.deploy (resource, s.config)
 
         runner s
 
     member inline _.Bind (State m, f) =
         State <| fun s' ->
+
         let (x, s) = m s'
         print s' "Value" x
 
@@ -47,30 +47,16 @@ type Infra< ^Config
 
     member inline _.Bind (nested, f) =
         State <| fun s' ->
-            let s = nested s'
 
-            print s' "inner" <| Managed.getName s
+        let s = nested s'
 
-            let (State m) = f ()
+        print s' "inner" <| Managed.getName s
 
-            m s
+        let (State m) = f ()
 
-    member inline _.Combine(stateA, stateB) =
-        print stateA "combine" <| Managed.getName stateB
-
-        {
-            resources = stateA.resources @ stateB.resources
-            handlers = stateA.handlers @ stateB.handlers
-            names = stateA.names @ stateB.names
-            config = stateA.config
-                // TODO not sure if it should be stateA or stateB
-                // Combine is for do!
-                // is the do! expression stateA or stateB?
-                // I should take the config of the outer cexpr (not the do! cexpr)
-        }
+        m s
           
     member inline _.Zero () =
-
         State <| fun s ->
 
         print s "zero" ""
