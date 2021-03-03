@@ -3,53 +3,79 @@ namespace Kita.Core
 open Kita.Core.Providers
 open Kita.Core.Resources
 
-type Infra (name: string, config: #Config) =
+type Named(name: string) =
+    // Gets around issues with inline + SRTP:
+    // error FS0670: This code is not sufficiently generic. The type variable  ^Config when  ^Config :> Config and  ^Config : (new : unit ->  ^Config) could not be generalized because it would escape its scope
+    // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
+    member val Name = name
+
+[<AutoOpen>]
+module Helper =
+    let inline print (m: Managed<'a>) label item =
+        printfn "%s| %s: %A"
+        <| match Managed.getName m with
+           | "" -> "anon"
+           | x -> x
+        <| label
+        <| item
+
+type Infra< ^Config
+    when ^Config :> Config
+    and ^Config : (new : unit -> ^Config)
+    >(name: string) =
+    inherit Named(name)
+
     member inline _.Bind (resource: #CloudResource, f)
-        // I may be running into this bug:
-        // https://github.com/dotnet/fsharp/issues/9449
-        // Regression: inline data for method (related to witness passing PR) #9449
         =
-        State <| fun s ->
+        State <| fun (s: Managed< ^Config>) ->
+        print s "Resource" resource
 
         let (State runner) = f resource
 
-        Ops.deploy (resource, config)
-        printfn "Bind resource: %A" resource
+        Ops.deploy (resource, s.config)
 
         runner s
 
     member inline _.Bind (State m, f) =
-        State <| fun s ->
+        State <| fun s' ->
+        let (x, s) = m s'
+        print s' "Value" x
 
-        let (x, s) = m s
         let (State m) = f x
-
-        printfn "Bind value: %A" x
 
         m s
 
-    member inline _.Bind (nested: Managed -> Managed, f) =
-        State <| fun s ->
-            let s = nested s
-            let (State m) = f ()
+    member inline _.Bind (nested, f) =
+        State <| fun s' ->
+            let s = nested s'
 
-            match List.tryLast s.names with
-            | Some innerName ->
-                printfn "Bind inner infra: %s" innerName
-            | None ->
-                printfn "Bind inner anonymous"
+            print s' "inner" <| Managed.getName s
+
+            let (State m) = f ()
 
             m s
 
     member inline _.Combine(stateA, stateB) =
-      { resources = stateA.resources @ stateB.resources
-        handlers = stateA.handlers @ stateB.handlers
-        names = stateA.names @ stateB.names }
+        print stateA "combine" <| Managed.getName stateB
+
+        {
+            resources = stateA.resources @ stateB.resources
+            handlers = stateA.handlers @ stateB.handlers
+            names = stateA.names @ stateB.names
+            config = stateA.config
+                // TODO not sure if it should be stateA or stateB
+                // Combine is for do!
+                // is the do! expression stateA or stateB?
+                // I should take the config of the outer cexpr (not the do! cexpr)
+        }
           
     member inline _.Zero () =
-        State <| fun _ ->
 
-        (), Managed.Empty
+        State <| fun s ->
+
+        print s "zero" ""
+
+        (), Managed.empty< ^Config>()
 
     member inline _.Return x = ret x
     member inline _.Yield x = ret x
@@ -59,12 +85,15 @@ type Infra (name: string, config: #Config) =
         let (State m) = f()
         m s
 
-    member inline _.Run (State m) =
+    member inline x.Run (State runner) =
         fun s ->
 
-        let (_x, s) = m s
+        print s "run" ""
+
         s
-        (* |> addName name *)
+        |> addName x.Name
+        |> runner
+        |> snd
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Route (State runner,
@@ -77,7 +106,7 @@ type Infra (name: string, config: #Config) =
         let path = pathWith ctx
         let handlers = handlersWith ctx
     
-        printfn "Routing: %s" path
+        print s "Route" path
 
         ctx
         , s |> addRoutes
@@ -88,15 +117,11 @@ type Infra (name: string, config: #Config) =
         [<ProjectionParameter>]task: _ -> Async<unit>)
         =
         State <| fun s ->
+        print s "Task" ""
 
         let (ctx, s) = runner s
         let task = task ctx
         let cloudTask = CloudTask task
 
-        printfn "Cloud task: %A" task
 
         ctx, s |> addResource cloudTask
-
-module Infra =
-    let inline infra (config: #Config) name =
-        Infra(name, config)

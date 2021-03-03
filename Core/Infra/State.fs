@@ -2,7 +2,7 @@ namespace Kita.Core
 
 open Kita.Core.Resources
 
-type State<'a> = | State of (Managed -> 'a * Managed)
+type State<'a, 'b> = | State of (Managed<'b> -> 'a * Managed<'b>)
 type Resource<'T when 'T :> CloudResource> = | Resource of 'T
 
 [<AutoOpen>]

@@ -1,14 +1,28 @@
 namespace Kita.Core
 
 open Kita.Core.Http
+open Kita.Core.Providers
 open Kita.Core.Resources
 
-type Managed =
+type Managed<'Config> =
   { resources : CloudResource list
     handlers : (string * MethodHandler) list
-    names : string list }
-    static member Empty =
+    names : string list
+    config : 'Config }
+
+module Managed =
+    let inline empty<'Config
+            when 'Config :> Config
+            and 'Config : (new : unit -> 'Config)
+            > ()
+        =
       { resources = []
         handlers = []
-        names = []}
+        names = []
+        config = new 'Config() }
+
+    let getName managed =
+        match List.tryHead managed.names with
+        | Some n -> n
+        | None -> ""
 

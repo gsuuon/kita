@@ -8,7 +8,7 @@ let teardown state =
         state.resources.Length
         state.names.Length
 
-let deploy name (state: Managed) =
+let deploy name (state: Managed<_>) =
     printfn "Deploying %s\n%i handlers, %i resources from %i blocks"
         name
         state.handlers.Length

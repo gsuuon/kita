@@ -6,9 +6,7 @@ open Kita.Core.Http.Helpers
 open Kita.Core.Resources
 open Kita.Core.Resources.Collections
 
-let internal infra name = Infra (name, Providers.Default.Az() )
-(* let infra name = Infra (name, Providers.Default.Aws() ) *)
-    // Compile error for resources which don't support Aws
+let infra name = Infra<Providers.Default.Az>(name)
 
 let cloudAbout = infra "about" {
     route "about" [
@@ -94,6 +92,6 @@ let cloudMain = infra "main" {
 
 let program debug =
     // Composing
-    Managed.Empty
+    Managed.empty()
     |> cloudProcs debug
     |> cloudMain
