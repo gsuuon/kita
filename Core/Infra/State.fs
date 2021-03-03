@@ -2,7 +2,7 @@ namespace Kita.Core
 
 open Kita.Core.Resources
 
-type State<'a, 'b> = | State of (Managed<'b> -> 'a * Managed<'b>)
+type State<'a, 'b, 'c> = | State of (Managed<'b> -> 'a * Managed<'c>)
 type Resource<'T when 'T :> CloudResource> = | Resource of 'T
 
 [<AutoOpen>]
@@ -19,3 +19,15 @@ module State =
         { state with names = name :: state.names }
 
     let ret x = State (fun s -> x, s)
+
+    /// Returns type of stateA
+    let combine stateA stateB =
+        { stateA with
+            handlers = stateA.handlers @ stateB.handlers
+            resources = stateA.resources @ stateB.resources
+            names = stateA.names @ stateB.names }
+
+    let convert state =
+        combine
+        <| Managed.empty<'T>()
+        <| state

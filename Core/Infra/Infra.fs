@@ -21,19 +21,46 @@ module Helper =
 
 type Infra< ^Config
     when ^Config :> Config
-    and ^Config : (new : unit -> ^Config)
-    >(name: string) =
+    and ^Config : (new : unit -> ^Config)> (name: string)
+    =
     inherit Named(name)
 
-    member inline _.Bind (resource: #CloudResource, f)
+    member inline _.Bind (resource: ^R when ^R : (member Deploy : ^Config -> unit), f)
         =
-        State <| fun (s: Managed< ^Config>) ->
+        let x = 
+            State <| fun (s: Managed< ^Config>) ->
 
-        print s "Resource" resource
-        let (State runner) = f resource
-        Ops.deploy (resource, s.config)
+            print s "Resource" resource
+            let (State runner) = f resource
+            (* Ops.deploy (resource, s.config) *)
+            s
+            |> addResource resource
+            |> runner
+        x
 
-        runner s
+    member inline _.Bind (State runnerA, f) =
+        let x = 
+            State <| fun (stateA: Managed< ^Config>) ->
+
+            let (x, stateA) = runnerA stateA
+            print stateA "Combined bind" x
+            print stateA "Combined stateA" stateA.config
+
+            let (State runnerB) = f x
+
+            let stateAsB = combine (Managed.empty< ^b>()) stateA
+            print stateA "Combined stateB" stateAsB.config
+
+            let (x, stateAsB') = runnerB stateAsB
+            print stateA "Combined stateB ran" stateAsB'.config
+
+            let stateAsBAsFinal : Managed< ^Config> =
+                combine (Managed.empty< ^Config>()) stateAsB'
+            print stateA "Combined final" stateAsBAsFinal.config
+
+            x, stateAsBAsFinal
+
+        x
 
     member inline _.Bind (State m, f) =
         State <| fun s' ->
@@ -68,18 +95,28 @@ type Infra< ^Config
     member inline _.Delay f =
         State <| fun s ->
 
-        let (State m) = f()
-        m s
+        let (State runner) = f()
 
-    member inline x.Run (State runner) =
+        s
+        |> runner
+
+    member inline x.Run (State runner) : Managed<'a> -> Managed< ^Config>
+        =
         fun s ->
 
         print s "run" ""
 
         s
+        (* |> convert *)
         |> addName x.Name
         |> runner
         |> snd
+
+    member inline _.Combine (State runnerA, State runnerB) =
+        State <| fun stateA ->
+            let ((), stateA) = runnerA stateA
+            let (y, stateB) = runnerB (convert stateA)
+            y, (convert stateB)
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Route (State runner,
@@ -111,3 +148,12 @@ type Infra< ^Config
 
 
         ctx, s |> addResource cloudTask
+
+module Infra =
+    let inline infra'< ^Config
+        when ^Config :> Config
+        and ^Config : (new : unit -> ^Config)> name = Infra< ^Config>(name)
+
+
+    let gated cond block =
+        if cond then block else id
