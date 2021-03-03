@@ -6,9 +6,10 @@ open Kita.Core.Http.Helpers
 open Kita.Core.Resources
 open Kita.Core.Resources.Collections
 
-let infra name = Infra<Providers.Default.Az>(name)
+let infraAz name = Infra<Providers.Default.Az>(name)
+let infraLocal name = Infra<Providers.Default.Local>(name)
 
-let cloudAbout = infra "about" {
+let cloudAbout = infraAz "about" {
     route "about" [
         ok "this is kita"
         |> asyncReturn
@@ -17,7 +18,9 @@ let cloudAbout = infra "about" {
     ]
 }
 
-let cloudDebug = infra "debug" {
+let cloudDebug = infraLocal "debug" {
+    let! klog = CloudLog()
+
     route "admin" [
         ok "You found the admin route"
         |> asyncReturn
@@ -26,8 +29,11 @@ let cloudDebug = infra "debug" {
     ]
 }
 
-let cloudProcs debug = infra "procs" {
+let cloudProcs debug = infraAz "procs" {
+
     let! klog = CloudLog()
+
+    (* do! cloudDebug *)
 
     do! cloudAbout // Nesting
 
@@ -39,19 +45,13 @@ let cloudProcs debug = infra "procs" {
             do! Async.Sleep 10000
     })
 
-    route "status" [
-        GET <| fun _ -> async {
-            return { status = OK; body = "All good" } }
-    ]
-
-    if debug then
-        // Conditional
-        // Must be after all custom operations (route, proc)
-        // Cannot contain custom operations
-        do! cloudDebug
+    (* route "status" [ *)
+    (*     GET <| fun _ -> async { *)
+    (*         return { status = OK; body = "All good" } } *)
+    (* ] *)
 }
 
-let cloudMain = infra "main" {
+let cloudMain = infraAz "main" {
     let! pendingSaves = CloudQueue()
     let! readySaves = CloudQueue()
     let! saves = CloudMap()
