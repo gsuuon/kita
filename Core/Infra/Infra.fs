@@ -7,9 +7,7 @@ open Kita.Core.Resources
 module Helper =
     let inline print (m: Managed<'a>) label item =
         printfn "%s| %s: %A"
-        <| match Managed.getName m with
-           | "" -> "anon"
-           | x -> x
+        <| match Managed.getName m with | "" -> "anon" | x -> x
         <| label
         <| item
 
@@ -20,32 +18,35 @@ type Infra< ^Config
     =
     inherit Named(name)
 
-    member inline _.Bind (resource: ^R when ^R : (member Deploy : ^Config -> unit), f)
-        =
-        State <| fun (s: Managed< ^Config>) ->
+    member inline _.Bind
+        ( resource: ^R when ^R : (member Deploy : ^Config -> unit)
+        , f
+        )
+        = State <| fun (s: Managed< ^Config>) ->
 
         print s "Resource" resource
 
-        let (State runner) = f resource
+        let (State m) = f resource
         Ops.deploy (resource, s.config)
 
         s
         |> addResource resource
-        |> runner
+        |> m
 
-    member inline _.Bind (State runnerA, f) =
-        State <| fun (stateA: Managed< ^Config>) ->
+    member inline _.Bind
+        (State mA, f)
+        = State <| fun (stateA: Managed< ^Config>) ->
 
-        let (x, stateA) = runnerA stateA
+        let (x, stateA) = mA stateA
         print stateA "Combined bind" x
         print stateA "Combined stateA" stateA.config
 
-        let (State runnerB) = f x
+        let (State mB) = f x
 
         let stateAsB = convert stateA
         print stateA "Combined stateB" stateAsB.config
 
-        let (x, stateAsB') = runnerB stateAsB
+        let (x, stateAsB') = mB stateAsB
         print stateA "Combined stateB ran" stateAsB'.config
 
         let stateAsBAsFinal : Managed< ^Config> =
@@ -55,8 +56,9 @@ type Infra< ^Config
 
         x, stateAsBAsFinal
 
-    member inline _.Bind (State m, f) =
-        State <| fun s' ->
+    member inline _.Bind
+        (State m, f)
+        = State <| fun s' ->
 
         let (x, s) = m s'
         print s' "Value" x
@@ -65,7 +67,9 @@ type Infra< ^Config
 
         m s
 
-    member inline _.Bind (nested, f) = State <| fun s ->
+    member inline _.Bind
+        (nested, f)
+        = State <| fun s ->
         let s' = nested s
 
         print s "inner" <| Managed.getName s'
@@ -74,44 +78,50 @@ type Infra< ^Config
 
         m s'
           
-    member inline _.Zero () = State <| fun s ->
+    member inline _.Zero ()
+        = State <| fun s ->
         print s "zero" ""
 
         (), Managed.empty< ^Config>()
 
     member inline _.Return x = ret x
     member inline _.Yield x = ret x
-    member inline _.Delay f = State <| fun s ->
-        let (State runner) = f()
+    member inline _.Delay f
+        = State <| fun s ->
 
-        s |> runner
+        let (State m) = f()
 
-    member inline x.Run (State runner)
-        : Managed<'a> -> Managed< ^Config>
-        =
-        fun s ->
+        s |> m
+
+    member inline x.Run
+        (State m) : Managed<'a> -> Managed< ^Config>
+        = fun s ->
 
         print s "run" ""
 
         s
         |> addName x.Name
-        |> runner
+        |> m
         |> snd
 
-    member inline _.Combine (State runnerA, State runnerB) =
-        State <| fun stateA ->
-            let ((), stateA) = runnerA stateA
-            let (y, stateB) = runnerB (convert stateA)
-            y, (convert stateB)
+    member inline _.Combine
+        (State mA, State mB)
+        = State <| fun stateA ->
+
+        let ((), stateA) = mA stateA
+        let (y, stateB) = mB (convert stateA)
+
+        y, (convert stateB)
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
-    member inline _.Route (State runner,
-        [<ProjectionParameter>]pathWith,
-        [<ProjectionParameter>]handlersWith)
-        =
-        State <| fun s ->
+    member inline _.Route
+        ( State m
+        , [<ProjectionParameter>] pathWith
+        , [<ProjectionParameter>] handlersWith
+        )
+        = State <| fun s ->
 
-        let (ctx, s) = runner s
+        let (ctx, s) = m s
         let path = pathWith ctx
         let handlers = handlersWith ctx
     
@@ -122,13 +132,15 @@ type Infra< ^Config
                 (List.map (fun x -> path, x) handlers)
 
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind=true)>]
-    member inline _.Proc (State runner,
-        [<ProjectionParameter>]task: _ -> Async<unit>)
-        =
-        State <| fun s ->
+    member inline _.Proc
+        ( State m,
+        [<ProjectionParameter>]
+            task: _ -> Async<unit>
+        )
+        = State <| fun s ->
         print s "Task" ""
 
-        let (ctx, s) = runner s
+        let (ctx, s) = m s
         let task = task ctx
         let cloudTask = CloudTask task
 
@@ -142,9 +154,10 @@ and Named(name: string) =
 
 module Infra =
     let inline infra'< ^Config
-        when ^Config :> Config
-        and ^Config : (new : unit -> ^Config)> name = Infra< ^Config>(name)
-
+                        when ^Config :> Config
+                        and ^Config : (new : unit -> ^Config)
+                        >
+                        name = Infra< ^Config>(name)
 
     let gated cond block =
         if cond then block else id
