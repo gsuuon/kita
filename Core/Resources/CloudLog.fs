@@ -10,10 +10,12 @@ type CloudLog() =
     member _.Warn = printfn "%s"
     member _.Error = printfn "%s"
 
-    member _.Deploy (az: Aws) =
+    member _.Deploy (cfg: Aws) =
         printfn "Deploy: Aws Log"
-    member _.Deploy (az: Az) =
+    member _.Deploy (cfg: Az) =
         printfn "Deploy: Azure Log"
+    member _.Deploy (cfg: Local) =
+        printfn "Deploy: Local Log"
 
     interface CloudResource with
         member _.CBind () = ()
