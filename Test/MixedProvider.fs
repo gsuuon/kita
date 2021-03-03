@@ -27,6 +27,7 @@ let mixBotWRoute = infraAz "mix bot w route" {
     do! debug
 }
 
+#if BROKEN // Just to take these out of compile path
 let mixTopWRoute = infraAz "mix top w route" {
     do! debug
 
@@ -66,4 +67,4 @@ let mixBotCondWRoute = infraAz "mix bot w route" {
     if x then
         do! debug
     }
-
+#endif
