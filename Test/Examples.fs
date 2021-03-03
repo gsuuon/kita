@@ -1,15 +1,16 @@
-module Kita.Test
+module Kita.Test.Examples
 
 open Kita.Core
+open Kita.Core.Infra
 open Kita.Core.Http
 open Kita.Core.Http.Helpers
 open Kita.Core.Resources
 open Kita.Core.Resources.Collections
+open Kita.Core.Providers.Default
 
-let infraAz name = Infra<Providers.Default.Az>(name)
-let infraLocal name = Infra<Providers.Default.Local>(name)
+let infra = infra'<Az>
 
-let cloudAbout = infraAz "about" {
+let cloudAbout = infra "about" {
     route "about" [
         ok "this is kita"
         |> asyncReturn
@@ -18,8 +19,8 @@ let cloudAbout = infraAz "about" {
     ]
 }
 
-let cloudDebug = infraLocal "debug" {
-    let! klog = CloudLog()
+let cloudDebug (klog: CloudLog) = infra'<Local> "debug" {
+    klog.Info "debugging"
 
     route "admin" [
         ok "You found the admin route"
@@ -29,11 +30,8 @@ let cloudDebug = infraLocal "debug" {
     ]
 }
 
-let cloudProcs debug = infraAz "procs" {
-
+let cloudProcs debug = infra "procs" {
     let! klog = CloudLog()
-
-    (* do! cloudDebug *)
 
     do! cloudAbout // Nesting
 
@@ -45,13 +43,16 @@ let cloudProcs debug = infraAz "procs" {
             do! Async.Sleep 10000
     })
 
-    (* route "status" [ *)
-    (*     GET <| fun _ -> async { *)
-    (*         return { status = OK; body = "All good" } } *)
-    (* ] *)
+    route "status" [
+        GET <| fun _ -> async {
+            return { status = OK; body = "All good" } }
+    ]
+
+    // Conditional nesting, mixed provider
+    do! gated debug <| cloudDebug klog
 }
 
-let cloudMain = infraAz "main" {
+let cloudMain = infra "main" {
     let! pendingSaves = CloudQueue()
     let! readySaves = CloudQueue()
     let! saves = CloudMap()

@@ -17,7 +17,8 @@
         <Compile Include="Core/Infra/State.fs" />
         <Compile Include="Core/Infra/Infra.fs" />
         <Compile Include="Operations.fs" />
-        <Compile Include="Test/Test.fs" />
+        <Compile Include="Test/Examples.fs" />
+        <Compile Include="Test/MixedProvider.fs" />
     </ItemGroup>
 
 </Project>
