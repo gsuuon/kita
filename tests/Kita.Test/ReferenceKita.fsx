@@ -1,0 +1,7 @@
+#I "bin/Release/netcoreapp3.1/"
+#r "Kita"
+#r "Kita.Test"
+#r "Kita.Resources"
+#r "Kita.Providers"
+#r "Kita.Providers.Azure"
+#r "Kita.Providers.Local"

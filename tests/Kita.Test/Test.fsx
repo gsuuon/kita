@@ -1,9 +1,4 @@
-#I "bin/Release/netcoreapp3.1/"
-#r "Kita"
-#r "Kita.Test"
-#r "Kita.Providers"
-#r "Kita.Providers.Azure"
-#r "Kita.Providers.Local"
+#load "ReferenceKita.fsx"
 
 open Kita.Operations
 open Kita.Test.Examples
