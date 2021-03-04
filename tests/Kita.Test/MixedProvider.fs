@@ -3,12 +3,12 @@ module Kita.Test.MixedProvider
 open Kita.Core
 open Kita.Core.Http
 open Kita.Core.Http.Helpers
-open Kita.Core.Resources
-open Kita.Core.Resources.Collections
-open Kita.Core.Providers
+open Kita.Resources
+open Kita.Resources.Collections
+open Kita.Providers
 
-let infraAz name = Infra<Default.Az>(name)
-let infraLocal name = Infra<Default.Local>(name)
+let infraAz name = Infra<Azure>(name)
+let infraLocal name = Infra<Local>(name)
 
 let debug =
     infraLocal "debug" {

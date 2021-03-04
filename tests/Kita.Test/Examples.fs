@@ -6,9 +6,9 @@ open Kita.Core.Http
 open Kita.Core.Http.Helpers
 open Kita.Resources
 open Kita.Resources.Collections
-open Kita.Providers.Default
+open Kita.Providers
 
-let infra = infra'<Az>
+let infra = infra'<Azure>
 
 let cloudAbout =
     infra "about" {
@@ -32,7 +32,7 @@ let cloudProcs debug =
 
         do! cloudAbout // Nesting
 
-        proc (
+        proc CloudTask (
             async {
                 let mutable count = 0
 
@@ -62,7 +62,7 @@ let cloudMain =
         pendingSaves.NewMessage.Add
         <| fun msg -> (klog.Info <| sprintf "Got %s" msg)
 
-        proc (
+        proc CloudTask (
             async {
                 while true do
                     let! msgs = pendingSaves.Dequeue 30

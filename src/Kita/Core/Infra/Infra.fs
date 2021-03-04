@@ -134,17 +134,22 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
 
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind = true)>]
     member inline _.Proc
+        // NOTE in this form, it's basically some sugar around a do!
+        // with constraints on the constructor argument type
         (
             State m,
-            [<ProjectionParameter>] creator,
-            [<ProjectionParameter>] resourceDef: _ -> Async<unit>
+            [<ProjectionParameter>] getCreator,
+            [<ProjectionParameter>] getResourceDef: _ -> Async<unit>
         ) =
         State
         <| fun s ->
             print s "Task" ""
 
             let (ctx, s) = m s
-            let resourceDef = resourceDef ctx
+
+            let resourceDef = getResourceDef ctx
+            let creator = getCreator ctx
+
             let resource = creator resourceDef
 
 
