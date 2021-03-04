@@ -1,10 +1,10 @@
-namespace Kita.Core.Resources.Collections
+namespace Kita.Resources.Collections
 
 open System.Collections.Generic
 
 open Kita.Core
-open Kita.Core.Resources
-open Kita.Core.Providers.Default
+open Kita.Resources
+open Kita.Providers
 
 type CloudQueue<'T>() =
     let activated = false
@@ -30,8 +30,7 @@ type CloudQueue<'T>() =
     member _.Dequeue count =
         async { return [ Unchecked.defaultof<'T> ] }
 
-    member _.Deploy(az: Gcp) = printfn "Deploy: Gcp Queue"
-    member _.Deploy(az: Az) = printfn "Deploy: Azure Queue"
+    member _.Deploy(az: Azure) = printfn "Deploy: Azure Queue"
 
     interface CloudResource with
         member _.CBind() = ()

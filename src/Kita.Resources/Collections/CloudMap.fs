@@ -1,8 +1,8 @@
-namespace Kita.Core.Resources.Collections
+namespace Kita.Resources.Collections
 
 open Kita.Core
-open Kita.Core.Resources
-open Kita.Core.Providers.Default
+open Kita.Resources
+open Kita.Providers
 
 type CloudMap<'K, 'V>() =
     let activated = false
@@ -21,4 +21,4 @@ type CloudMap<'K, 'V>() =
         member _.ReportDesiredState _c = ()
         member _.BeginActivation _c = ()
 
-    member _.Deploy(az: Az) = printfn "Deploy: Azure Map"
+    member _.Deploy(az: Azure) = printfn "Deploy: Azure Map"
