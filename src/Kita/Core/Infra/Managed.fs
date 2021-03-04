@@ -11,7 +11,7 @@ type Managed<'Config> =
       config: 'Config }
 
 module Managed =
-    let inline empty<'Config when 'Config :> Config and 'Config: (new :
+    let inline empty<'Config when 'Config :> Provider and 'Config: (new :
                                                                       unit ->
                                                                       'Config)>
         ()

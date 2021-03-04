@@ -6,8 +6,8 @@ type Binder = unit
 
 type CloudResource =
     abstract member CBind : Binder -> unit
-    abstract member ReportDesiredState : Config -> unit
-    abstract member BeginActivation : Config -> unit
+    abstract member ReportDesiredState : Provider -> unit
+    abstract member BeginActivation : Provider -> unit
 
 module Cfg =
     type Persist =
@@ -19,7 +19,7 @@ module Ops =
         class
         end
 
-    let inline deploy< ^C, ^R when ^R: (member Deploy : ^C -> unit) and ^C :> Config>
+    let inline deploy< ^C, ^R when ^R: (member Deploy : ^C -> unit) and ^C :> Provider>
         (
             resource: ^R,
             config: ^C

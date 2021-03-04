@@ -1,27 +1,27 @@
 namespace Kita.Core.Providers
 
-type Config(name: string) =
+type Provider(name: string) =
     member val name = name
     member _.Initialize() = true
 
-type ConfigLike< ^Config when ^Config :> Config and ^Config: (new :
-                                                                  unit ->
-                                                                  ^Config)> =
-    ^Config
+type ProviderLike< ^Provider
+                    when ^Provider :> Provider
+                    and ^Provider: (new : unit -> ^Provider)>
+                    = ^Provider
 
 module Default =
     type Local() =
-        inherit Config("Local.Default")
+        inherit Provider("Local.Default")
         member _.Initialize() = printfn "Initialize Local.Default"
 
     type Az() =
-        inherit Config("Azure.Default")
+        inherit Provider("Azure.Default")
         member _.Initialize() = printfn "Initialize Azure.Default"
 
     type Gcp() =
-        inherit Config("Gcp.Default")
+        inherit Provider("Gcp.Default")
         member _.Initialize() = printfn "Initialize Gcp.Default"
 
     type Aws() =
-        inherit Config("Aws.Default")
+        inherit Provider("Aws.Default")
         member _.Initialize() = printfn "Initialize Aws.Default"

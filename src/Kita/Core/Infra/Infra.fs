@@ -13,7 +13,7 @@ module Helper =
         <| label
         <| item
 
-type Infra< ^Config when ^Config :> Config and ^Config: (new : unit -> ^Config)>
+type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^Provider)>
     (
         name: string
     ) =
@@ -21,11 +21,11 @@ type Infra< ^Config when ^Config :> Config and ^Config: (new : unit -> ^Config)>
 
     member inline _.Bind
         (
-            resource: ^R when ^R: (member Deploy : ^Config -> unit),
+            resource: ^R when ^R: (member Deploy : ^Provider -> unit),
             f
         ) =
         State
-        <| fun (s: Managed< ^Config >) ->
+        <| fun (s: Managed< ^Provider >) ->
 
             print s "Resource" resource
 
@@ -36,7 +36,7 @@ type Infra< ^Config when ^Config :> Config and ^Config: (new : unit -> ^Config)>
 
     member inline _.Bind(State mA, f) =
         State
-        <| fun (stateA: Managed< ^Config >) ->
+        <| fun (stateA: Managed< ^Provider >) ->
 
             let (x, stateA) = mA stateA
             print stateA "Combined bind" x
@@ -50,7 +50,7 @@ type Infra< ^Config when ^Config :> Config and ^Config: (new : unit -> ^Config)>
             let (x, stateAsB') = mB stateAsB
             print stateA "Combined stateB ran" stateAsB'.config
 
-            let stateAsBAsFinal : Managed< ^Config > = convert stateAsB'
+            let stateAsBAsFinal : Managed< ^Provider > = convert stateAsB'
 
             print stateA "Combined final" stateAsBAsFinal.config
 
@@ -83,7 +83,7 @@ type Infra< ^Config when ^Config :> Config and ^Config: (new : unit -> ^Config)>
         <| fun s ->
             print s "zero" ""
 
-            (), Managed.empty< ^Config> ()
+            (), Managed.empty< ^Provider> ()
 
     member inline _.Return x = ret x
     member inline _.Yield x = ret x
@@ -96,7 +96,7 @@ type Infra< ^Config when ^Config :> Config and ^Config: (new : unit -> ^Config)>
 
             s |> m
 
-    member inline x.Run(State m) : Managed<'a> -> Managed< ^Config > =
+    member inline x.Run(State m) : Managed<'a> -> Managed< ^Provider > =
         fun s ->
 
             print s "run" ""
@@ -151,16 +151,16 @@ type Infra< ^Config when ^Config :> Config and ^Config: (new : unit -> ^Config)>
 
 and Named(name: string) =
     // Gets around issues with inline accessing private data and SRTP:
-    // error FS0670: This code is not sufficiently generic. The type variable  ^Config when  ^Config :> Config and  ^Config : (new : unit ->  ^Config) could not be generalized because it would escape its scope
+    // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
     // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
     member val Name = name
 
 module Infra =
-    let inline infra'< ^Config
-                            when ^Config :> Config
-                            and ^Config: (new : unit -> ^Config)>
+    let inline infra'< ^Provider
+                            when ^Provider :> Provider
+                            and ^Provider: (new : unit -> ^Provider)>
         name
         =
-        Infra< ^Config>(name)
+        Infra< ^Provider>(name)
 
     let gated cond block = if cond then block else id
