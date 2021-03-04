@@ -30,7 +30,7 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
             print s "Resource" resource
 
             let (State m) = f resource
-            Ops.deploy (resource, s.config)
+            Ops.deploy (resource, s.provider)
 
             s |> addResource resource |> m
 
@@ -40,19 +40,19 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
 
             let (x, stateA) = mA stateA
             print stateA "Combined bind" x
-            print stateA "Combined stateA" stateA.config
+            print stateA "Combined stateA" stateA.provider
 
             let (State mB) = f x
 
             let stateAsB = convert stateA
-            print stateA "Combined stateB" stateAsB.config
+            print stateA "Combined stateB" stateAsB.provider
 
             let (x, stateAsB') = mB stateAsB
-            print stateA "Combined stateB ran" stateAsB'.config
+            print stateA "Combined stateB ran" stateAsB'.provider
 
             let stateAsBAsFinal : Managed< ^Provider > = convert stateAsB'
 
-            print stateA "Combined final" stateAsBAsFinal.config
+            print stateA "Combined final" stateAsBAsFinal.provider
 
             x, stateAsBAsFinal
 

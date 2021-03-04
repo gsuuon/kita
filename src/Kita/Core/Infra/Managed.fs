@@ -4,21 +4,21 @@ open Kita.Core.Http
 open Kita.Providers
 open Kita.Resources
 
-type Managed<'Config> =
+type Managed<'Provider> =
     { resources: CloudResource list
       handlers: (string * MethodHandler) list
       names: string list
-      config: 'Config }
+      provider: 'Provider }
 
 module Managed =
-    let inline empty<'Config
-                        when 'Config :> Provider
-                        and 'Config: (new : unit -> 'Config)> ()
+    let inline empty<'Provider
+                        when 'Provider :> Provider
+                        and 'Provider: (new : unit -> 'Provider)> ()
         =
         { resources = []
           handlers = []
           names = []
-          config = new 'Config() }
+          provider = new 'Provider() }
 
     let getName managed =
         match List.tryHead managed.names with
