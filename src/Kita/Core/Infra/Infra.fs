@@ -136,18 +136,19 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
     member inline _.Proc
         (
             State m,
-            [<ProjectionParameter>] task: _ -> Async<unit>
+            [<ProjectionParameter>] creator,
+            [<ProjectionParameter>] resourceDef: _ -> Async<unit>
         ) =
         State
         <| fun s ->
             print s "Task" ""
 
             let (ctx, s) = m s
-            let task = task ctx
-            let cloudTask = CloudTask task
+            let resourceDef = resourceDef ctx
+            let resource = creator resourceDef
 
 
-            ctx, s |> addResource cloudTask
+            ctx, s |> addResource resource
 
 and Named(name: string) =
     // Gets around issues with inline accessing private data and SRTP:
