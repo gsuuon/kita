@@ -10,7 +10,6 @@ type ConfigLike< ^Config when ^Config :> Config and ^Config: (new :
     ^Config
 
 module Default =
-
     type Local() =
         inherit Config("Local.Default")
         member _.Initialize() = printfn "Initialize Local.Default"

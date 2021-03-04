@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netcoreapp3.1;netstandard2.0</TargetFrameworks>
+        <TargetFramework>netstandard2.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,8 +17,6 @@
         <Compile Include="Core/Infra/State.fs" />
         <Compile Include="Core/Infra/Infra.fs" />
         <Compile Include="Operations.fs" />
-        <Compile Include="Test/Examples.fs" />
-        <Compile Include="Test/MixedProvider.fs" />
     </ItemGroup>
 
 </Project>
