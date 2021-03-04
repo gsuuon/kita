@@ -1,4 +1,4 @@
-﻿namespace Kita.Providersc
+﻿namespace Kita.Providers
 
 open Kita.Providers
 
