@@ -1,4 +1,4 @@
-﻿namespace Kita.Providers.Local
+﻿namespace Kita.Resources
 
 module Say =
     let hello name =

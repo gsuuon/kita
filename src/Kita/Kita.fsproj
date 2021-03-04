@@ -5,12 +5,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Core/Providers/Config.fs" />
-        <Compile Include="Core/CloudResource.fs" />
-        <Compile Include="Core/Resources/CloudLog.fs" />
-        <Compile Include="Core/Resources/CloudTask.fs" />
-        <Compile Include="Core/Resources/Collections/CloudMap.fs" />
-        <Compile Include="Core/Resources/Collections/CloudQueue.fs" />
+        <Compile Include="Core/Providers/Provider.fs" />
+        <Compile Include="Core/Resources/CloudResource.fs" />
         <Compile Include="Core/Http.fs" />
         <Compile Include="Core/HttpHelpers.fs" />
         <Compile Include="Core/Infra/Managed.fs" />
