@@ -156,9 +156,9 @@ and Named(name: string) =
     member val Name = name
 
 module Infra =
-    let inline infra'< ^Config when ^Config :> Config and ^Config: (new :
-                                                                        unit ->
-                                                                        ^Config)>
+    let inline infra'< ^Config
+                            when ^Config :> Config
+                            and ^Config: (new : unit -> ^Config)>
         name
         =
         Infra< ^Config>(name)

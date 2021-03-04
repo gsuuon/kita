@@ -2,6 +2,7 @@
 
 open Kita.Test
 open Kita.Operations
+open Kita.Test.Examples
 
 deploy "prod" <| program false
 deploy "dev" <| program true

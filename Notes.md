@@ -16,7 +16,9 @@ Inherit from the cloud classes, implement custom provider Deploy override, and r
 - Generate system state
 - Diff against previous state
 - Generate updates
-- Execute
+- Execute updates
+
+When/how do I bind?
 
 ProviderConfig can provide common state and methods needed to establish resources.
 
