@@ -4,9 +4,9 @@ open Kita.Core
 open Kita.Core.Infra
 open Kita.Core.Http
 open Kita.Core.Http.Helpers
-open Kita.Core.Resources
-open Kita.Core.Resources.Collections
-open Kita.Core.Providers.Default
+open Kita.Resources
+open Kita.Resources.Collections
+open Kita.Providers.Default
 
 let infra = infra'<Az>
 

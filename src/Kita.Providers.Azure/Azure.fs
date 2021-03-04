@@ -1,6 +1,6 @@
 ﻿namespace Kita.Providersc
 
-open Kita.Core.Providers
+open Kita.Providers
 
 type Azure() =
     inherit Provider("Azure.Default")

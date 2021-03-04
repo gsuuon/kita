@@ -1,7 +1,7 @@
 namespace Kita.Core
 
-open Kita.Core.Providers
-open Kita.Core.Resources
+open Kita.Providers
+open Kita.Resources
 
 [<AutoOpen>]
 module Helper =

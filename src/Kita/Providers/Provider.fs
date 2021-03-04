@@ -1,4 +1,4 @@
-namespace Kita.Core.Providers
+namespace Kita.Providers
 
 type Provider(name: string) =
     member val name = name

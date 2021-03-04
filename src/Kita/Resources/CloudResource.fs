@@ -1,6 +1,6 @@
-namespace Kita.Core.Resources
+namespace Kita.Resources
 
-open Kita.Core.Providers
+open Kita.Providers
 
 type Binder = unit
 

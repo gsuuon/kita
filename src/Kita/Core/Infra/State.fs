@@ -1,6 +1,6 @@
 namespace Kita.Core
 
-open Kita.Core.Resources
+open Kita.Resources
 
 type State<'a, 'b, 'c> = State of (Managed<'b> -> 'a * Managed<'c>)
 type Resource<'T when 'T :> CloudResource> = Resource of 'T

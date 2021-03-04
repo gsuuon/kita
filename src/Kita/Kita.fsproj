@@ -5,8 +5,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Core/Providers/Provider.fs" />
-        <Compile Include="Core/Resources/CloudResource.fs" />
+        <Compile Include="Providers/Provider.fs" />
+        <Compile Include="Resources/CloudResource.fs" />
         <Compile Include="Core/Http.fs" />
         <Compile Include="Core/HttpHelpers.fs" />
         <Compile Include="Core/Infra/Managed.fs" />

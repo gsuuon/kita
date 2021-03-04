@@ -1,8 +1,8 @@
 namespace Kita.Core
 
 open Kita.Core.Http
-open Kita.Core.Providers
-open Kita.Core.Resources
+open Kita.Providers
+open Kita.Resources
 
 type Managed<'Config> =
     { resources: CloudResource list
@@ -11,10 +11,9 @@ type Managed<'Config> =
       config: 'Config }
 
 module Managed =
-    let inline empty<'Config when 'Config :> Provider and 'Config: (new :
-                                                                      unit ->
-                                                                      'Config)>
-        ()
+    let inline empty<'Config
+                        when 'Config :> Provider
+                        and 'Config: (new : unit -> 'Config)> ()
         =
         { resources = []
           handlers = []

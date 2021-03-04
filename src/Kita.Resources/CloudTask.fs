@@ -1,10 +1,10 @@
-namespace Kita.Core.Resources
+namespace Kita.Resources
 
 open System.Threading.Tasks
 
 open Kita.Core
-open Kita.Core.Resources
-open Kita.Core.Providers.Default
+open Kita.Resources
+open Kita.Providers.Default
 
 type CloudTask(asyncWork: Async<unit>) =
     member _.Deploy(az: Az) =
