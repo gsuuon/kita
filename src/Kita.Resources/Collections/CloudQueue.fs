@@ -30,7 +30,8 @@ type CloudQueue<'T>() =
     member _.Dequeue count =
         async { return [ Unchecked.defaultof<'T> ] }
 
-    member _.Deploy(az: Azure) = printfn "Deploy: Azure Queue"
+    member _.Deploy(provider: Azure) = printfn "Deploy: Azure Queue"
+    member _.Deploy(liderocal: Local) = printfn "Deploy: Local Queue"
 
     interface CloudResource with
         member _.CBind() = ()

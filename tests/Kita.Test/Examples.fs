@@ -18,6 +18,8 @@ let cloudDebug (klog: CloudLog) =
     infra'<Local> "debug" {
         klog.Info "debugging"
 
+        let! secretQueue = CloudQueue()
+
         route
             "admin"
             [ ok "You found the admin route"
