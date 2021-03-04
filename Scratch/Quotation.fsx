@@ -10,9 +10,10 @@ let eval = Evaluator.QuotationEvaluator.Evaluate
 
 let f' = eval f
 
-let x = Evaluator.QuotationEvaluator.ToLinqExpression f
-x
-|> printfn "linq expression: %A"
+let x =
+    Evaluator.QuotationEvaluator.ToLinqExpression f
+
+x |> printfn "linq expression: %A"
 
 printfn "Free vars: %A" <| f.GetFreeVars()
 printfn "%A" <| f' 1 2

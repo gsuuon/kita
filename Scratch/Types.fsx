@@ -1,20 +1,17 @@
 type Base() =
     member _.DoThing() = ()
 
-let inline baseOp< ^T when ^T :> Base > (b: ^T) =
-    b.DoThing()
+let inline baseOp< ^T when ^T :> Base> (b: ^T) = b.DoThing()
 
-type GenericConstraint< 'T when 'T :> Base>(ob: 'T) =
+type GenericConstraint<'T when 'T :> Base>(ob: 'T) =
     // Compiles
     member val Ob = ob
-    member inline x.Fn () =
-        x.Ob |> ignore
+    member inline x.Fn() = x.Ob |> ignore
 
 
 type SRTPCnst_SRTPFn< ^T when ^T :> Base>(ob: ^T) =
     // Doesnt
-    member inline x.Fn () =
-        baseOp ob
+    member inline x.Fn() = baseOp ob
 
 
 (* type GenCnst_SRTPFn< 'T when 'T :> Base>(ob: 'T) = // signature incompat *)

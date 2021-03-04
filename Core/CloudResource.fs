@@ -15,11 +15,14 @@ module Cfg =
         | ByPosition
 
 module Ops =
-    type Conf = class end
-    
-    let inline deploy< ^C, ^R
-                        when ^R : (member Deploy : ^C -> unit)
-                        and ^C :> Config>
-        (resource: ^R, config: ^C)
+    type Conf =
+        class
+        end
+
+    let inline deploy< ^C, ^R when ^R: (member Deploy : ^C -> unit) and ^C :> Config>
+        (
+            resource: ^R,
+            config: ^C
+        )
         =
-        ( ^R : (member Deploy: ^C -> unit) (resource, config) )
+        (^R: (member Deploy : ^C -> unit) (resource, config))

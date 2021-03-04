@@ -6,9 +6,9 @@ open Kita.Core
 open Kita.Core.Resources
 open Kita.Core.Providers.Default
 
-type CloudQueue<'T> () =
+type CloudQueue<'T>() =
     let activated = false
-    
+
     let newMessage = new Event<'T>()
 
     [<CLIEvent>]
@@ -22,19 +22,18 @@ type CloudQueue<'T> () =
     member private _.Teardown config = ()
 
     member _.Enqueue item = ()
-    member _.Enqueue (xs: 'T list) = 
-        async { return () }
-    member _.Dequeue () =
-        async { return Unchecked.defaultof<'T> }
-    member _.Dequeue count =
-        async { return [Unchecked.defaultof<'T>] }
+    member _.Enqueue(xs: 'T list) = async { return () }
 
-    member _.Deploy (az: Gcp) =
-        printfn "Deploy: Gcp Queue"
-    member _.Deploy (az: Az) =
-        printfn "Deploy: Azure Queue"
+    member _.Dequeue() =
+        async { return Unchecked.defaultof<'T> }
+
+    member _.Dequeue count =
+        async { return [ Unchecked.defaultof<'T> ] }
+
+    member _.Deploy(az: Gcp) = printfn "Deploy: Gcp Queue"
+    member _.Deploy(az: Az) = printfn "Deploy: Azure Queue"
 
     interface CloudResource with
-        member _.CBind () = ()
+        member _.CBind() = ()
         member _.ReportDesiredState _c = ()
         member _.BeginActivation _c = ()
