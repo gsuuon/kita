@@ -11,6 +11,8 @@ type CloudQueue<'T>() =
 
     let newMessage = new Event<'T>()
 
+    let mutable provider = None
+
     [<CLIEvent>]
     member _.NewMessage = newMessage.Publish
 
@@ -31,9 +33,13 @@ type CloudQueue<'T>() =
         async { return [ Unchecked.defaultof<'T> ] }
 
     member _.Deploy(provider: Azure) = printfn "Deploy: Azure Queue"
-    member _.Deploy(liderocal: Local) = printfn "Deploy: Local Queue"
+    member _.Deploy(provider: Local) =
+        provider.Initialize()
+
+        printfn "Deploy: Local Queue"
 
     interface CloudResource with
         member _.CBind() = ()
         member _.ReportDesiredState _c = ()
-        member _.BeginActivation _c = ()
+        member _.BeginActivation (provider': Provider) =
+            provider <- Some provider'

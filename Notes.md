@@ -31,3 +31,10 @@ generate updates based on diff
 
 then for staged:
 execute updates
+
+### Changeset
+What constitutes a change?
+Defined per resource
+
+does changing name of group count?
+reordering?
