@@ -1,6 +1,6 @@
 namespace Kita.Providers
 
-open Kita.Providers
+open Kita.Core.Providers
 
 type Local() =
     inherit Provider("Local.Default")
