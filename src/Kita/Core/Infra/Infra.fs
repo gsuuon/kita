@@ -128,6 +128,11 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
 
             print s "Route" path
 
+            handlers
+            |> List.iter
+                (fun handler ->
+                    print s "Handler" (handler.GetType().FullName))
+
             ctx,
             s
             |> addRoutes (List.map (fun x -> path, x) handlers)
