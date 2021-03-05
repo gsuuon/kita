@@ -34,10 +34,6 @@ myDict.["bar"] <-
         provider = loc
     }
 
-for KeyValue(k,v) in myDict do
-    printfn "-- Key: %A" k
-    printfn "%A" v
-
 (*
 how does this get used in resources?
 *)
