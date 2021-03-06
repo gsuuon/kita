@@ -29,7 +29,7 @@ let mixBotWRoute =
                       return ok "Got it"
                   } ]
 
-        do! debug
+        nest debug
     }
 
 #if BROKEN // Just to take these out of compile path

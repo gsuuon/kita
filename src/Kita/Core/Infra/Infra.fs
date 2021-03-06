@@ -34,28 +34,6 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
 
             s |> addResource resource |> m
 
-    member inline _.Bind(State mA, f) =
-        State
-        <| fun (stateA: Managed< ^Provider >) ->
-
-            let (x, stateA) = mA stateA
-            print stateA "Combined bind" x
-            print stateA "Combined stateA" stateA.provider
-
-            let (State mB) = f x
-
-            let stateAsB = convert stateA
-            print stateA "Combined stateB" stateAsB.provider
-
-            let (x, stateAsB') = mB stateAsB
-            print stateA "Combined stateB ran" stateAsB'.provider
-
-            let stateAsBAsFinal : Managed< ^Provider > = convert stateAsB'
-
-            print stateA "Combined final" stateAsBAsFinal.provider
-
-            x, stateAsBAsFinal
-
     member inline _.Bind(State m, f) =
         State
         <| fun s' ->
@@ -66,17 +44,6 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
             let (State m) = f x
 
             m s
-
-    member inline _.Bind(nested, f) =
-        State
-        <| fun s ->
-            let s' = nested s
-
-            print s "inner" <| Managed.getName s'
-
-            let (State m) = f ()
-
-            m s'
 
     member inline _.Zero() =
         State
@@ -116,15 +83,15 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
     member inline _.Route
         (
             State m,
-            [<ProjectionParameter>] pathWith,
-            [<ProjectionParameter>] handlersWith
+            [<ProjectionParameter>] getPath,
+            [<ProjectionParameter>] getHandlers
         ) =
         State
         <| fun s ->
 
             let (ctx, s) = m s
-            let path = pathWith ctx
-            let handlers = handlersWith ctx
+            let path = getPath ctx
+            let handlers = getHandlers ctx
 
             print s "Route" path
 
@@ -134,17 +101,20 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
                     print s "Handler" (handler.GetType().FullName))
 
             ctx,
-            s
-            |> addRoutes (List.map (fun x -> path, x) handlers)
+            s |> addRoutes (List.map (fun x -> path, x) handlers)
 
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind = true)>]
     member inline _.Proc
         // NOTE in this form, it's basically some sugar around a do!
-        // with constraints on the constructor argument type
+        // with ability to put constraints on the creator argument type
+        // trying to use do! was kind of busted because overload resolution
+        // doesn't differentiate null type, so I'd have to create
+        // a wrapper type for null-like resources and wrap everything
+        // custom operation makes this easier
         (
             State m,
             [<ProjectionParameter>] getCreator,
-            [<ProjectionParameter>] getResourceDef: _ -> Async<unit>
+            [<ProjectionParameter>] getResourceDef
         ) =
         State
         <| fun s ->
@@ -159,6 +129,34 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
 
 
             ctx, s |> addResource resource
+
+
+    [<CustomOperation("nest", MaintainsVariableSpaceUsingBind = true)>]
+    member inline _.Nest
+        (
+            State m,
+            [<ProjectionParameter>] getNested
+        ) =
+        // TODO revisit this, Managed<'T> should just live in a collection and not all be jammed into one record
+        State
+        <| fun state ->
+            let (ctx, s) = m state
+
+            let joinNested = getNested ctx
+
+            ctx, 
+            s
+            |> convert
+                // inner state may be a different Provider, ie different specialization of Managed
+            |> joinNested
+            |> combine
+                // Convert back to original provider type
+                { provider = s.provider
+                  handlers = []
+                  resources = []
+                  names = []
+                  }
+
 
 and Named(name: string) =
     // Gets around issues with inline accessing private data and SRTP:

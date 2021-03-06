@@ -18,8 +18,6 @@ let cloudDebug (klog: CloudLog) =
     infra'<Local> "debug" {
         klog.Info "debugging"
 
-        let! secretQueue = CloudQueue()
-
         route
             "admin"
             [ ok "You found the admin route"
@@ -32,26 +30,26 @@ let cloudProcs debug =
     infra "procs" {
         let! klog = CloudLog()
 
-        do! cloudAbout // Nesting
+        nest cloudAbout
+            // Nesting
 
-        proc CloudTask (
-            async {
+        proc CloudTask
+            (async {
                 let mutable count = 0
 
                 while true do
                     klog.Info(sprintf "This is process tick: %i" count)
                     count <- count + 1
                     do! Async.Sleep 10000
-            }
-        )
+            })
 
         route
             "status"
             [ GET
               <| fun _ -> async { return { status = OK; body = "All good" } } ]
 
-        // Conditional nesting, mixed provider
-        do! gated debug <| cloudDebug klog
+        nest (gated debug <| cloudDebug klog)
+            // Conditional nesting, mixed provider
     }
 
 let cloudMain =
