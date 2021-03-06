@@ -36,12 +36,17 @@ let iter fn (asyncEnum: IAsyncEnumerator<'T>) =
             n |> (:=) next
     }
 
-type Node =
-    | StorageAccount of string
+type ResourceNode =
+    | StorageAccount of name: string
     | Queue of string
 
 type Resource = {
-    nodes: Node list
+    nodes: ResourceNode list
+    (* NOTE
+        Nodes could effectively be paths
+        the stack includes the storageaccount and any parents
+        provisioning the same nodes should be noops
+    *)
 }
 
 type Group = {
@@ -113,6 +118,43 @@ let managerClient credential =
         Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID"),
         credential )
 
+let provisionResourceNode =
+    function
+    | StorageAccount name ->
+        task {return GenericResource() }
+    | _ -> 
+        task {return GenericResource() }
+
+let waitAll x = // FIXME There's gotta be a built-in way to do this with a task?
+    x
+    |> List.map Async.AwaitTask
+    |> Async.Sequential
+    |> Async.StartAsTask
+
+
+let provisionResource ({nodes=nodes}) =
+    nodes
+    |> List.map provisionResourceNode
+    |> waitAll
+
+let provisionGroup
+    (client: ResourcesManagementClient)
+    (scope: Scope)
+    (groupName: string, group: Group)
+    = task {
+        let! resourceGroup =
+            client
+            |> setResourceGroup
+                (scope.applicationName + "__" + groupName)
+                scope.location
+
+        return!
+            group.resources
+            |> List.map provisionResource
+            |> waitAll
+    }
+
+    
 let provisionScope
     (client: ResourcesManagementClient)
     (scope: Scope)
@@ -127,6 +169,13 @@ let provisionScope
                 resourceGroup
                 (scope.applicationName + "__storageAccount")
                 scope.location
+
+        let! provisionedResources =
+            scope.groups
+            |> Map.toList
+            |> List.map
+                (provisionGroup client scope)
+            |> waitAll
 
         do! client
             |> iterAllResources
