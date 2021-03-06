@@ -1,19 +1,16 @@
 namespace Kita.Core.Http
+// This is all placeholder stuff, will probably replace with existing library
 
-type Status<'T> =
-    | OK of body: 'T
-    | NOTFOUND
-
-type RawStatus =
+type Status =
     | OK
     | NOTFOUND
 
 type RawRequest =
-    { body: string
-      headers: string list
-      cookies: string list }
+    { mutable body: string
+      mutable headers: string list
+      mutable cookies: string list }
 
-type RawResponse = { body: string; status: RawStatus }
+type RawResponse = { body: string; status: Status }
 
 type RawHandler = RawRequest -> Async<RawResponse>
 
@@ -22,7 +19,7 @@ type Request<'T> =
       headers: string list
       cookies: string list }
 
-type Response<'T> = { status: Status<'T>; body: string }
+type Response<'T> = { status: Status; body: string }
 
 type Handler<'T, 'R> =
     Request<'T> -> Response<'R> -> Async<Request<'T> * Response<'R>>
