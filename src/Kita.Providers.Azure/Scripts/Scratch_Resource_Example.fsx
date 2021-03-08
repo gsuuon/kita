@@ -31,13 +31,14 @@ let example () = task {
     printfn "Created resource group %s" resourceGroup.Name
 
     printfn "Creating storage account.."
-    let! storageAccountResult =
+    let! storageAccountOp =
         client.Resources.StartCreateOrUpdateAsync
             ( resourceGroupName
             , "Microsoft.Storage"
             , ""
             , "storageAccounts"
-            , "storeA"
+            , "as2qriu9h"
+                // storeA is not a valid storage account name. Storage account name must be between 3 and 24 characters in length and use numbers and lower-case letters only.
             , "2019-06-01"
             , GenericResource
                 ( Location = "westus"
@@ -46,67 +47,21 @@ let example () = task {
                     , Tier = "Standard"
                     )
                 , Kind = "StorageV2"
-                , Properties = ([ "accessTier", "hot" ] |> dict |> Dictionary)
+                , Properties = ([ "accessTier", "hot" :> obj ] |> dict |> Dictionary)
                 )
             )
 
+    let! storageAccountResult = storageAccountOp.WaitForCompletionAsync()
     let storageAccount = storageAccountResult.Value
+
     printfn "Created storage account %s" storageAccount.Name
 }
 
-let smallExampleTask () = task {
-    let resourceGroupName = "groupA"
-
-    let credential = DefaultAzureCredential()
-    let client =
-        ResourcesManagementClient
-            ( Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID")
-            , credential
-            )
-
-    printfn "Creating resource group %s" resourceGroupName
-    let! result =
-        client.ResourceGroups.CreateOrUpdateAsync
-            ( resourceGroupName
-            , ResourceGroup("westus")
-            )
-
-    let resourceGroup = result.Value
-    printfn "Created %s" resourceGroup.Name
-
-    return resourceGroup.Name
+let fsiTaskWorkaround aTaskCtor = async {
+    return! aTaskCtor() |> Async.AwaitTask
 }
 
-let smallExampleAsync () = async {
-    let resourceGroupName = "groupA"
-
-    let credential = DefaultAzureCredential()
-    let client =
-        ResourcesManagementClient
-            ( Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID")
-            , credential
-            )
-
-    printfn "Creating resource group %s" resourceGroupName
-    let! result =
-        client.ResourceGroups.CreateOrUpdateAsync
-            ( resourceGroupName
-            , ResourceGroup("westus")
-            )
-        |> Async.AwaitTask
-
-    let resourceGroup = result.Value
-    printfn "Created %s" resourceGroup.Name
-
-    return resourceGroup.Name
-}
-
-
-let smallExampleWrapped () = async {
-    // async/await stalls in fsi
-    // async/await stalls in fsi, this is the workaround
-    return! smallExampleTask() |> Async.AwaitTask
-}
-
-smallExampleWrapped()
+fsiTaskWorkaround example
 |> Async.RunSynchronously
+
+printfn "Finished"
