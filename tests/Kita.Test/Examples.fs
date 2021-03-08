@@ -76,7 +76,7 @@ let cloudMain =
             [ GET
               <| fun req ->
                   async {
-                      match! saves.TryFind req.body with
+                      match! saves.TryFind req.queries.["sid"] with
                       | Some s -> return { status = OK; body = s }
                       | None -> return { status = NOTFOUND; body = "🤷" }
                   }

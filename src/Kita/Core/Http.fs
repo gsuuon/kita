@@ -7,6 +7,7 @@ type Status =
 
 type RawRequest =
     { mutable body: string
+      mutable queries: System.Collections.Generic.IDictionary<string, string>
       mutable headers: string list
       mutable cookies: string list }
 
@@ -16,6 +17,7 @@ type RawHandler = RawRequest -> Async<RawResponse>
 
 type Request<'T> =
     { body: 'T
+      queries: System.Collections.Generic.IDictionary<string, string>
       headers: string list
       cookies: string list }
 
