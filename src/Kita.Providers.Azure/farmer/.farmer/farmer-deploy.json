@@ -1,0 +1,166 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "outputs": {
+    "storageConnString": {
+      "type": "string",
+      "value": "[concat('DefaultEndpointsProtocol=https;AccountName=ane32ru4q098qrt340u9p;AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', 'ane32ru4q098qrt340u9p'), '2017-10-01').keys[0].value)]"
+    }
+  },
+  "parameters": {},
+  "resources": [
+    {
+      "apiVersion": "2019-06-01",
+      "dependsOn": [],
+      "kind": "StorageV2",
+      "location": "westus",
+      "name": "ane32ru4q098qrt340u9p",
+      "properties": {},
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "tags": {},
+      "type": "Microsoft.Storage/storageAccounts"
+    },
+    {
+      "apiVersion": "2019-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', 'ane32ru4q098qrt340u9p')]"
+      ],
+      "name": "ane32ru4q098qrt340u9p/default/bloop",
+      "type": "Microsoft.Storage/storageAccounts/queueServices/queues"
+    },
+    {
+      "apiVersion": "2019-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', 'ane32ru4q098qrt340u9p')]"
+      ],
+      "name": "ane32ru4q098qrt340u9p/default/pending",
+      "type": "Microsoft.Storage/storageAccounts/queueServices/queues"
+    },
+    {
+      "apiVersion": "2019-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', 'ane32ru4q098qrt340u9p')]"
+      ],
+      "name": "ane32ru4q098qrt340u9p/default/saving",
+      "type": "Microsoft.Storage/storageAccounts/queueServices/queues"
+    },
+    {
+      "apiVersion": "2016-08-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', 'myfirstwebapp9u8r34qqr3p9u48-ai')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', 'ane32ru4q098qrt340u9p')]",
+        "[resourceId('Microsoft.Web/serverfarms', 'myfirstwebapp9u8r34qqr3p9u48-farm')]"
+      ],
+      "identity": {
+        "type": "None"
+      },
+      "kind": "app",
+      "location": "westus",
+      "name": "myfirstwebapp9u8r34qqr3p9u48",
+      "properties": {
+        "httpsOnly": false,
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'myfirstwebapp9u8r34qqr3p9u48-farm')]",
+        "siteConfig": {
+          "alwaysOn": false,
+          "appSettings": [
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(resourceId('Microsoft.Insights/components', 'myfirstwebapp9u8r34qqr3p9u48-ai'), '2014-04-01').InstrumentationKey]"
+            },
+            {
+              "name": "APPINSIGHTS_PROFILERFEATURE_VERSION",
+              "value": "1.0.0"
+            },
+            {
+              "name": "APPINSIGHTS_SNAPSHOTFEATURE_VERSION",
+              "value": "1.0.0"
+            },
+            {
+              "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+              "value": "~2"
+            },
+            {
+              "name": "DiagnosticServices_EXTENSION_VERSION",
+              "value": "~3"
+            },
+            {
+              "name": "InstrumentationEngine_EXTENSION_VERSION",
+              "value": "~1"
+            },
+            {
+              "name": "SnapshotDebugger_EXTENSION_VERSION",
+              "value": "~1"
+            },
+            {
+              "name": "XDT_MicrosoftApplicationInsights_BaseExtensions",
+              "value": "~1"
+            },
+            {
+              "name": "XDT_MicrosoftApplicationInsights_Mode",
+              "value": "recommended"
+            },
+            {
+              "name": "storageKey",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=ane32ru4q098qrt340u9p;AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', 'ane32ru4q098qrt340u9p'), '2017-10-01').keys[0].value)]"
+            }
+          ],
+          "connectionStrings": [],
+          "metadata": [
+            {
+              "name": "CURRENT_STACK",
+              "value": "dotnetcore"
+            }
+          ]
+        }
+      },
+      "tags": {},
+      "type": "Microsoft.Web/sites"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "kind": "web",
+      "location": "westus",
+      "name": "myfirstwebapp9u8r34qqr3p9u48-ai",
+      "properties": {
+        "ApplicationId": "myfirstwebapp9u8r34qqr3p9u48",
+        "Application_Type": "web",
+        "DisableIpMasking": false,
+        "SamplingPercentage": 100,
+        "name": "myfirstwebapp9u8r34qqr3p9u48-ai"
+      },
+      "tags": {
+        "[concat('hidden-link:', resourceGroup().id, '/providers/Microsoft.Web/sites/', 'myfirstwebapp9u8r34qqr3p9u48')]": "Resource"
+      },
+      "type": "Microsoft.Insights/components"
+    },
+    {
+      "apiVersion": "2018-02-01",
+      "location": "westus",
+      "name": "myfirstwebapp9u8r34qqr3p9u48-farm",
+      "properties": {
+        "name": "myfirstwebapp9u8r34qqr3p9u48-farm",
+        "perSiteScaling": false,
+        "reserved": false
+      },
+      "sku": {
+        "capacity": 1,
+        "name": "F1",
+        "size": "0",
+        "tier": "Free"
+      },
+      "tags": {},
+      "type": "Microsoft.Web/serverfarms"
+    },
+    {
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', 'myfirstwebapp9u8r34qqr3p9u48')]"
+      ],
+      "location": "westus",
+      "name": "myfirstwebapp9u8r34qqr3p9u48/Microsoft.AspNetCore.AzureAppServices.SiteExtension",
+      "type": "Microsoft.Web/sites/siteextensions"
+    }
+  ]
+}

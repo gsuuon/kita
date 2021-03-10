@@ -1,4 +1,3 @@
-#r "nuget: Azure.Identity"
 #r "nuget: Azure.Storage.Queues"
 #r "nuget: Farmer"
 

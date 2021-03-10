@@ -1,6 +1,9 @@
 #r "nuget: Azure.Identity"
 #r "nuget: TaskBuilder.fs,2.1.0"
 #r "nuget: Azure.ResourceManager.Resources,1.0.0-preview.1"
+#r "nuget: Microsoft.Azure.ConfigurationManager, 4.0.0"
+// This may fail to load due to https://github.com/dotnet/fsharp/issues/10893
+// Depending on fsi version
 
 open System
 open System.Collections.Generic
@@ -17,6 +20,9 @@ open Azure.ResourceManager.Resources.Models
 // AZURE_CLIENT_SECRET
 // AZURE_TENANT_ID
 // AZURE_SUBSCRIPTION_ID
+
+let accessTierHot () : Dictionary<string, obj>=
+    Dictionary ( dict [ "accessTier", "hot" :> obj ] )
 
 let value (response: Task<Azure.Response<'T>>) =
     task {
@@ -63,7 +69,43 @@ let resourceOp (op: Task<ResourcesCreateOrUpdateOperation>) =
     task {
         let! result = op
         let! x = result.WaitForCompletionAsync()
+        printfn "Finished"
         return x.Value }
+
+let managerClient credential =
+    printfn "Creating manager client"
+    ResourcesManagementClient (
+        Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID"),
+        credential )
+
+// Not sure I should keep this pattern
+// setX - composable (maybe?), client last arg
+// provisionX - map/iter, item collection last arg, client first arg
+
+let setQueue
+    (resourceGroup: ResourceGroup)
+    storageName
+    queueName
+    location
+    (client: ResourcesManagementClient)
+    =
+    client.Resources.StartCreateOrUpdateAsync
+        ( resourceGroup.Name // resourcegroup
+        , "Microsoft.Storage" // namespace
+        , storageName // parent resource path
+        , "queueServices/queues" // resourceType
+        , queueName // resourceName
+        , "2019-06-01" // apiversion
+        , GenericResource
+            ( Location = location
+            , Sku = Sku
+                ( Name = "Standard_LRS"
+                , Tier = "Standard")
+            , Kind = "StorageV2"
+            , Properties = accessTierHot()
+            )
+        )
+    |> resourceOp
 
 let setStorageAccount
     (resourceGroup: ResourceGroup)
@@ -71,9 +113,7 @@ let setStorageAccount
     location
     (client: ResourcesManagementClient)
     =
-    let accessTierHot () : Dictionary<string, obj>=
-        Dictionary ( dict [ "accessTier", "hot" :> obj ] )
-
+    printfn "Setting storage account %s" storageAccountName
     client.Resources.StartCreateOrUpdateAsync(
         resourceGroup.Name,
         "Microsoft.Storage",
@@ -93,12 +133,17 @@ let setStorageAccount
     
 let setResourceGroup
     resourceGroupName location (client: ResourcesManagementClient)
-    = task {
-        let! res =
-            client.ResourceGroups.CreateOrUpdateAsync(
-                resourceGroupName, ResourceGroup(location))
+    =
+    task {
+        printfn "Setting resource group %s" resourceGroupName
 
-        return res.Value }
+        let! result =
+            client.ResourceGroups.CreateOrUpdateAsync
+                (resourceGroupName, ResourceGroup(location))
+
+        printfn "Set resource group %s" resourceGroupName
+        return result.Value
+    }
 
 let iterAllResources
     (iterFn: GenericResourceExpanded -> unit)
@@ -113,17 +158,26 @@ let iterAllResources
         do! iter iterFn resources
     }
 
-let managerClient credential =
-    ResourcesManagementClient (
-        Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID"),
-        credential )
-
-let provisionResourceNode =
+let provisionResourceNode
+    (client: ResourcesManagementClient)
+    (resourceGroup: ResourceGroup)
+    (scope: Scope)
+    =
     function
-    | StorageAccount name ->
-        task {return GenericResource() }
-    | _ -> 
-        task {return GenericResource() }
+    | StorageAccount storageName ->
+        setStorageAccount
+            resourceGroup
+            storageName
+            scope.location
+            client
+    | Queue queueName ->
+        setQueue
+            resourceGroup
+            "kitappstorage"
+                // TODO
+            queueName
+            scope.location
+            client
 
 let waitAll x = // FIXME There's gotta be a built-in way to do this with a task?
     x
@@ -131,10 +185,14 @@ let waitAll x = // FIXME There's gotta be a built-in way to do this with a task?
     |> Async.Sequential
     |> Async.StartAsTask
 
-
-let provisionResource ({nodes=nodes}) =
+let provisionResource 
+    (client: ResourcesManagementClient)
+    (resourceGroup: ResourceGroup)
+    (scope: Scope)
+    ({nodes=nodes})
+    =
     nodes
-    |> List.map provisionResourceNode
+    |> List.map (provisionResourceNode client resourceGroup scope)
     |> waitAll
 
 let provisionGroup
@@ -145,31 +203,20 @@ let provisionGroup
         let! resourceGroup =
             client
             |> setResourceGroup
-                (scope.applicationName + "__" + groupName)
+                groupName
                 scope.location
 
         return!
             group.resources
-            |> List.map provisionResource
+            |> List.map (provisionResource client resourceGroup scope)
             |> waitAll
     }
-
     
 let provisionScope
     (client: ResourcesManagementClient)
     (scope: Scope)
     = task {
-        let! resourceGroup =
-            client
-            |> setResourceGroup scope.applicationName scope.location
-
-        let! _storageAccount =
-            client
-            |> setStorageAccount
-                resourceGroup
-                (scope.applicationName + "__storageAccount")
-                scope.location
-
+        printfn "Provisioning resources"
         let! provisionedResources =
             scope.groups
             |> Map.toList
@@ -177,23 +224,40 @@ let provisionScope
                 (provisionGroup client scope)
             |> waitAll
 
-        do! client
-            |> iterAllResources
-                (fun res ->
-                    printfn "Resource: %A - %A" res.Name res.Type)
-                resourceGroup
+        printfn "Provisioned: %A" provisionedResources
+
+        provisionedResources
+        |> Array.iter (printfn "%A")
+
+        (* do! client *)
+        (*     |> iterAllResources *)
+        (*         (fun res -> *)
+        (*             printfn "Resource: %A - %A" res.Name res.Type) *)
+        (*         resourceGroup *)
     }
 
-let runTask = Async.AwaitTask >> Async.RunSynchronously
-
-let main () =
-    provisionScope
-    <| managerClient (DefaultAzureCredential())
-    <| { applicationName = "kita-app"
-         location = "westus"
-         groups = Map.empty }
-
-    |> runTask
+let main () = async {
+    return!
+        provisionScope
+        <| managerClient (DefaultAzureCredential())
+        <| { applicationName = "kita-app"
+             location = "westus"
+             groups = Map.ofList [
+                "groupA", {
+                    resources = [
+                        {
+                            nodes = [
+                                StorageAccount "kitaappstorage"
+                                Queue "kitappqueue"
+                            ]
+                        }
+                    ]
+                }
+             ] }
+        |> Async.AwaitTask
+}
 
 main()
+|> Async.RunSynchronously
+
 printfn "Done"
