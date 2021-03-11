@@ -39,6 +39,8 @@ unsafe (runtime errors galore when deploying)
   * but - the docs specify which items are required
 programmatic access only via preview Automation package
 requires pulumi account (and so, downstream users would require a pulumi account)
+  - breaks at runtime if can't contact pulumi servers
+      - stderr: error: getting user info from https://api.pulumi.com: performing HTTP request: Get "https://api.pulumi.com/api/user": dial tcp: lookup api.pulumi.com: no such host
 
 
 ### Summary
