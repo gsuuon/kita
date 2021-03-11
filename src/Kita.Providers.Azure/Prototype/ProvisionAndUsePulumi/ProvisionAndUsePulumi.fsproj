@@ -8,7 +8,12 @@
     <ItemGroup>
         <Compile Include="Helpers.fs" />
         <Compile Include="BasicQueue.fs" />
+        <Compile Include="KitaApp/Queue.fs" />
         <Compile Include="Program.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../Kita.Providers.Azure.fsproj" />
     </ItemGroup>
 
     <ItemGroup>

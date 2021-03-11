@@ -12,7 +12,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="../../src/Kita/Kita.fsproj" />
         <ProjectReference Include="../../src/Kita.Providers.Azure/Kita.Providers.Azure.fsproj" />
     </ItemGroup>
 

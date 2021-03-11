@@ -16,7 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- <Compile Include="Azure.fs" /> -->
+        <Compile Include="Azure.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 
