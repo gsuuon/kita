@@ -1,4 +1,4 @@
-module ProvisionPulumiAuto.KitaApp.Queue
+module PulumiPrototype.Test.Queue
 
 open Kita.Core.Http
 open Kita.Core.Infra
