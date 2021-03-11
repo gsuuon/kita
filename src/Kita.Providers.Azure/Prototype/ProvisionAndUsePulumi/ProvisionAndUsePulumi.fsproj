@@ -6,6 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="Helpers.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 
@@ -14,6 +15,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Azure.Storage.Queues" Version="12.6.0" />
         <PackageReference Include="ply" Version="0.3.1" />
         <PackageReference Include="Pulumi.Automation" Version="2.23.0-alpha.1615392815" />
         <PackageReference Include="Pulumi.FSharp.Azure" Version="3.49.0.29" />
