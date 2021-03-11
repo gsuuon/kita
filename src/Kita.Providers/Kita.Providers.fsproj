@@ -7,4 +7,9 @@
         <ProjectReference Include="../Kita.Providers.Azure/Kita.Providers.Azure.fsproj" />
         <ProjectReference Include="../Kita.Providers.Local/Kita.Providers.Local.fsproj" />
     </ItemGroup>
+
+    <ItemGroup>
+        <Compile Include="Default.fs" />
+    </ItemGroup>
+
 </Project>
