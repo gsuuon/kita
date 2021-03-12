@@ -53,7 +53,7 @@ type PulumiAzure() =
 
     let connectionString : string option ref = ref None
 
-    member _.ConnectionString = waitUntilue 100 connectionString
+    member _.ConnectionString = waitUntilValue 100 connectionString
 
     member _.AddResource adder =
         queuedResources <- adder :: queuedResources

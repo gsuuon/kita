@@ -6,7 +6,6 @@ open Pulumi.AzureNative.Resources
 open Pulumi.FSharp
 open Pulumi.FSharp.Output
 open Pulumi.FSharp.AzureNative.Resources
-open Pulumi.FSharp.AzureNative.Network
 open Pulumi.FSharp.AzureNative.Storage
 open Pulumi.FSharp.AzureNative.Storage.Inputs
 
