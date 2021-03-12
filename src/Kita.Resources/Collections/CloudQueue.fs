@@ -23,7 +23,7 @@ type CloudQueue<'T>() =
     member private _.UpdateInstance config = ()
     member private _.Teardown config = ()
 
-    member _.Enqueue item = ()
+    member _.Enqueue item = async { return () }
     member _.Enqueue(xs: 'T list) = async { return () }
 
     member _.Dequeue() =
