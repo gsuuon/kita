@@ -6,10 +6,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="Utility.fs" />
         <Compile Include="Helpers.fs" />
-        <Compile Include="QueueApp.fs" />
         <Compile Include="Provider.fs" />
         <Compile Include="PulumiQueue.fs" />
+        <Compile Include="QueueApp.fs" />
+        <Compile Include="Deploy.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 

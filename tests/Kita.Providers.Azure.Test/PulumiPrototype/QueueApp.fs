@@ -2,13 +2,14 @@ module PulumiPrototype.Test.Queue
 
 open Kita.Core.Http
 open Kita.Core.Infra
-open Kita.Resources.Collections
 open Kita.Providers
 
-let kitaApp = infra'<Azure>
+open PulumiPrototype.Test.Resources
+
+let kitaApp = infra'<PulumiAzure>
 
 let useQueue = kitaApp "basicQueue" {
-    let! q = CloudQueue<string>()
+    let! q = PulumiQueue<string>()
 
     route "item" [
         POST

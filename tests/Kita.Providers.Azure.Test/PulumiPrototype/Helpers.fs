@@ -1,4 +1,4 @@
-module ProvisionPulumiAuto.Helpers
+module PulumiPrototype.Helpers
 
 open Pulumi.FSharp
 open Pulumi.Automation
