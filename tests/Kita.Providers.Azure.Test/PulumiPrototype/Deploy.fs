@@ -11,6 +11,7 @@ let deploy (managed: Managed<PulumiAzure>) = async {
 
     let! response =
         match managed.handlers with
+        // do stuff with handlers
         | (_route, handler)::_rest ->
             match handler with
             | POST h ->

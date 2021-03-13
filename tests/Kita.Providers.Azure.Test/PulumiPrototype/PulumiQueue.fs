@@ -9,8 +9,6 @@ open Azure.Storage.Queues
 type PulumiQueue<'T>() =
     inherit CloudQueue<'T>()
     let name = "defaultqname"
-    // got invalid resource name?
-    // with uppercase? or because it hasn't been provisioned?
 
     let _qClient : QueueClient option ref = ref None
     let qClient = waitUntilValue 100 _qClient
