@@ -9,8 +9,10 @@ open Pulumi.AzureNative.Storage
 open Pulumi.AzureNative.Resources
 
 open Pulumi.Automation
+
 open PulumiPrototype.Helpers
 open PulumiPrototype.Utility
+open PulumiPrototype.Waiter
 
 type PulumiAzure() =
     inherit Provider("Azure.Pulumi")
@@ -51,9 +53,8 @@ type PulumiAzure() =
             |> dict
         )
 
-    let connectionString : string option ref = ref None
-
-    member _.ConnectionString = waitUntilValue 100 connectionString
+    let connectionString = Waiter<string>()
+    member _.WaitConnectionString = connectionString.Get
 
     member _.AddResource adder =
         queuedResources <- adder :: queuedResources
@@ -86,9 +87,11 @@ type PulumiAzure() =
 
             |> Async.AwaitTask
 
-        connectionString :=
+        let conString =
             let primaryKey = outputs.[PrimaryKey] :?> string
             let storageAccountName = outputs.[StorageAccountName] :?> string
 
-            Some $"DefaultEndpointsProtocol=https;AccountName={storageAccountName};AccountKey={primaryKey}"
+            $"DefaultEndpointsProtocol=https;AccountName={storageAccountName};AccountKey={primaryKey}"
+
+        connectionString.Set conString
     }
