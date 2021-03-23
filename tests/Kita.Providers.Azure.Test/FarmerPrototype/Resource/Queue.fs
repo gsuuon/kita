@@ -1,4 +1,4 @@
-namespace PulumiPrototype.Test.Resources
+namespace FarmerPrototype
 
 open Kita.Resources.Collections
 open Kita.Providers
@@ -6,18 +6,24 @@ open Kita.Utility
 
 open Azure.Storage.Queues
 
-type PulumiQueue<'T>() =
+type FarmerQueue<'T>(?name: string) =
     inherit CloudQueue<'T>()
-    let name = "defaultqname"
+    let name = defaultArg name "defaultfarmerqname"
 
     let client = Waiter<QueueClient>()
 
-    member _.Deploy(provider: PulumiAzure) =
-        provider.AddDependent
-        <| async {
-            let! connectionString = provider.WaitConnectionString()
-            client.Set <| QueueClient(connectionString, name)
-        }
+    member _.Attach(provider: FarmerAzure) =
+        provider.OnConnect.Add
+        <| fun connectionString ->
+            QueueClient(connectionString, name) |> client.Set 
+
+        // I don't want to do the provisioning work here because
+        // I don't want the provisioning code as a dependency here
+        // Does that make sense? Does it become a dependency anyways?
+        // It's transient, but does that have less impact than direct?
+
+        // I think this also makes it easier to have different 'frontend'
+        // classes for the same backend resource
 
         provider.AddQueue name
 

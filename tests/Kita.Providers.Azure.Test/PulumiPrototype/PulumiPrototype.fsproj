@@ -6,7 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Utility.fs" />
+        <Compile Include="../Utility.fs" />
         <Compile Include="Waiter.fs" />
         <Compile Include="Helpers.fs" />
         <Compile Include="Provider.fs" />
