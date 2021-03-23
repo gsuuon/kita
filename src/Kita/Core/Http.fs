@@ -1,4 +1,6 @@
 namespace Kita.Core.Http
+
+open System.Collections.Generic
 // This is all placeholder stuff, will probably replace with existing library
 
 type Status =
@@ -6,10 +8,10 @@ type Status =
     | NOTFOUND
 
 type RawRequest =
-    { mutable body: string
-      mutable queries: System.Collections.Generic.IDictionary<string, string>
-      mutable headers: string list
-      mutable cookies: string list }
+    { mutable body: byte seq
+      mutable queries: IDictionary<string, string list>
+      mutable headers: IDictionary<string, string list>
+      mutable cookies: IDictionary<string, string> }
 
 type RawResponse = { body: string; status: Status }
 
@@ -17,9 +19,9 @@ type RawHandler = RawRequest -> Async<RawResponse>
 
 type Request<'T> =
     { body: 'T
-      queries: System.Collections.Generic.IDictionary<string, string>
-      headers: string list
-      cookies: string list }
+      queries: IDictionary<string, string list>
+      headers: IDictionary<string, string list>
+      cookies: IDictionary<string, string> }
 
 type Response<'T> = { status: Status; body: string }
 
