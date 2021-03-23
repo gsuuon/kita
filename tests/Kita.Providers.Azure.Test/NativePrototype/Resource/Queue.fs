@@ -19,6 +19,13 @@ type Queue<'T>(?name: string) =
     member _.Attach(provider: AzureNative) =
         provider.RequestQueue(name)
 
+        async {
+            // Using waiter means I could attach after deploy
+            // Since the event is only fired when connection happens
+            let! conString = provider.WaitConnectionString.Get()
+            QueueClient(conString, name) |> queueClient.Set
+        } |> Async.Start
+
     member this.Deploy(x) = this.Attach(x)
         // TODO rename this to Attach
 
@@ -44,12 +51,12 @@ type Queue<'T>(?name: string) =
 
         return () }
 
-    member _.Dequeue count = async {
+    member _.Dequeue (count: int) = async {
         let! client = queueClient.Get()
 
-        let! rMsgs = client.ReceiveMessagesAsync(count) |> Async.AwaitTask
+        let! rMsgs = client.ReceiveMessagesAsync count |> Async.AwaitTask
 
         return
             rMsgs.Value
-            |> Array.map (fun x -> x.Body)
+            |> Array.map (fun x -> x.MessageText)
             |> Array.toList }

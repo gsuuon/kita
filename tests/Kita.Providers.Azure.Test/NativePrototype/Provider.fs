@@ -67,6 +67,8 @@ module AzureNative =
         let! storageAccountRes = rawResult.WaitForCompletionAsync()
         let storageAccount = storageAccountRes.Value
 
+        printfn "Finished storage account: %s" storageAccount.Id
+
         return storageAccount
 
         }
@@ -120,7 +122,10 @@ module AzureNative =
                 let key = keys.[0]
                 printfn "First key permissions: %A" key.Permissions
 
-                return $"DefaultEndpointsProtocol=https;AccountName={saName};AccountKey={key}"
+                let conString = $"DefaultEndpointsProtocol=https;AccountName={saName};AccountKey={key.Value}"
+                printfn "Connection string: %s" conString
+
+                return conString
             else
                 return failwith "Couldn't get storage connection string"
         }
@@ -128,11 +133,15 @@ module AzureNative =
 type AzureNative() =
     inherit Provider("Azure.Native")
 
-    let connectionString = Waiter<string>()
     let mutable deployRequests = []
     let requestDeploy deploy =
+        // Could instantly deploy resource if provider already deployed
+        // to support attaching resources after deployment
         deployRequests <- deploy :: deployRequests
 
+    let connectionString = Waiter<string>()
+    member _.WaitConnectionString = connectionString
+    member _.OnConnection = connectionString.OnSet
     member _.Deploy appName = task {
         let client = storageClient()
         let! rg =
