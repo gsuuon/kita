@@ -18,7 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="../../../src/Kita.Providers.Local/Kita.Providers.Local.fsproj" />
+        <ProjectReference Include="../../../src/Kita.Providers/Kita.Providers.fsproj" />
     </ItemGroup>
 
 </Project>
