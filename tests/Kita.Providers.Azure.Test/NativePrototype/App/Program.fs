@@ -16,7 +16,7 @@ module App =
 
         route "hi" [
             GET <| fun _ -> async {
-                let! xs = q.Dequeue 1
+                let! xs = q.Dequeue 20
                 return
                     sprintf "Got %A" xs
                     |> ok
@@ -43,7 +43,6 @@ module App =
 
 [<EntryPoint>]
 let main argv =
-
     let server =
         App.deploy()
         |> Async.RunSynchronously
