@@ -1,13 +1,13 @@
 namespace AzureNativePrototype
 
 open System
-
 open FSharp.Control.Tasks
 
 open Kita.Core
 open Kita.Providers
 open Kita.Utility
 
+open AzureNativePrototype.Client
 open AzureNextApi
 open AzurePreviousApi
 
@@ -20,8 +20,8 @@ type AzureNative() =
         provisionRequests <- provision :: provisionRequests
 
     let connectionString = Waiter<string>()
-    member _.WaitConnectionString = connectionString
-    member _.OnConnection = connectionString.OnSet
+    member val WaitConnectionString = connectionString
+    member val OnConnection = connectionString.OnSet
     member _.Deploy
         appName
         location
@@ -50,23 +50,26 @@ type AzureNative() =
                 appPlan
                 rgName
 
+        printfn "Using function app: %s" functionApp.Name
+
         let! data = GenerateProject.generateFunctionsAppZip managed
+        
+        let blobs = Blobs(conString)
 
         let! blobContainerClient =
-            Blobs.blobContainerClient "deploy-zips-azure"
+            blobs.BlobContainerClient "deploy-zips-azure"
 
         let blobClient = blobContainerClient.GetBlobClient("latest-deploy")
 
-        let! info =
+        let! _info =
             use mem = new System.IO.MemoryStream(data)
-            blobClient.UploadAsync(mem) |> rValue
+            blobClient.UploadAsync(mem, true) |> rValue
 
         let! blobUri =
-            Blobs.blobGenerateSas
-                Blobs.Permission.Read
+            Blobs.BlobGenerateSas
+                BlobPermission.Read
                 1.0
                 blobClient
-
 
         (* let! deployment = *)
         (*     functionApp *)
@@ -75,7 +78,7 @@ type AzureNative() =
         (*         .WithExistingDeploymentsDeleted(false) *)
         (*         .ExecuteAsync() *)
 
-        printfn "Blob sas uri: %s" blobUri.AbsoluteUri
+        printfn "Blob sas uri:\r\n%s" blobUri.AbsoluteUri
 
         return ()
 
