@@ -22,7 +22,7 @@ type Queue<'T>(?name: string) =
         async {
             // Using waiter means I could attach after deploy
             // Since the event is only fired when connection happens
-            let! conString = provider.WaitConnectionString.Get()
+            let! conString = provider.WaitConnectionString.GetAsync
             QueueClient(conString, name) |> queueClient.Set
         } |> Async.Start
 
@@ -30,7 +30,7 @@ type Queue<'T>(?name: string) =
         // TODO rename this to Attach
 
     member _.Enqueue item = async {
-        let! client = queueClient.Get()
+        let! client = queueClient.GetAsync
         let! sendReceiptRes =
             client.SendMessageAsync item |> Async.AwaitTask
 
@@ -39,7 +39,7 @@ type Queue<'T>(?name: string) =
         return () }
 
     member _.Enqueue (xs: string seq) = async {
-        let! client = queueClient.Get()
+        let! client = queueClient.GetAsync
 
         do! Async.AwaitTask
             <| task {
@@ -52,7 +52,7 @@ type Queue<'T>(?name: string) =
         return () }
 
     member _.Dequeue (count: int) = async {
-        let! client = queueClient.Get()
+        let! client = queueClient.GetAsync
 
         let! rMsgs = client.ReceiveMessagesAsync count |> Async.AwaitTask
 
