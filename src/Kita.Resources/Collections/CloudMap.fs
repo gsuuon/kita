@@ -21,4 +21,4 @@ type CloudMap<'K, 'V>() =
         member _.ReportDesiredState _c = ()
         member _.BeginActivation _c = ()
 
-    member _.Deploy(az: Azure) = printfn "Deploy: Azure Map"
+    member _.Attach(az: Azure) = printfn "Attach: Azure Map"

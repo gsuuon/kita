@@ -21,7 +21,7 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
 
     member inline _.Bind
         (
-            resource: ^R when ^R: (member Deploy : ^Provider -> unit),
+            resource: ^R when ^R: (member Attach : ^Provider -> unit),
             f
         ) =
         State
@@ -30,7 +30,7 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
             print s "Resource" resource
 
             let (State m) = f resource
-            Ops.deploy (resource, s.provider)
+            Ops.attach (resource, s.provider)
 
             s |> addResource resource |> m
 

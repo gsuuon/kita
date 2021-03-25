@@ -7,8 +7,8 @@ open Kita.Resources
 open Kita.Providers
 
 type CloudTask(asyncWork: Async<unit>) =
-    member _.Deploy(az: Azure) =
-        printfn "Deploy: Azure Task as Function"
+    member _.Attach(az: Azure) =
+        printfn "Attach: Azure Task as Function"
 
     interface CloudResource with
         member _.CBind() = ()

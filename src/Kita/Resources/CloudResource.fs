@@ -19,10 +19,10 @@ module Ops =
         class
         end
 
-    let inline deploy< ^C, ^R when ^R: (member Deploy : ^C -> unit) and ^C :> Provider>
+    let inline attach< ^C, ^R when ^R: (member Attach : ^C -> unit) and ^C :> Provider>
         (
             resource: ^R,
             config: ^C
         )
         =
-        (^R: (member Deploy : ^C -> unit) (resource, config))
+        (^R: (member Attach : ^C -> unit) (resource, config))
