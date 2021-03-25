@@ -8,8 +8,6 @@ open Kita.Core
 open Kita.Providers
 open Kita.Utility
 
-open Provision
-
 open AzureNextApi
 open AzurePreviousApi
 
