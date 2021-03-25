@@ -9,9 +9,9 @@
         <Compile Include="Operation/AzureNextApi.fs" />
         <Compile Include="Operation/AzurePreviousApi.fs" />
         <Compile Include="Operation/Provision.fs" />
+        <Compile Include="Operation/GenerateProject.fs" />
         <Compile Include="Provider.fs" />
         <Compile Include="Resource/Queue.fs" />
-        <Compile Include="Operation/Deploy.fs" />
     </ItemGroup>
 
     <ItemGroup>

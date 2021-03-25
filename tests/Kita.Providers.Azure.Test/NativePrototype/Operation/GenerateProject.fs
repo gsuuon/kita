@@ -1,9 +1,12 @@
-module AzureNativePrototype.Deploy
+module AzureNativePrototype.GenerateProject
 
 open Kita.Core
 open FSharp.Control.Tasks
 
-let generateFunctionsApp (managed: Managed<AzureNative>) = async {
+open AzureNativePrototype
+
+let generateFunctionsAppZip (managed: Managed<_>) = task {
+        // We don't actually care what provider is here I think
     // Generate a whole project? Or use template?
         // Generate all files
             // generate fsproj
@@ -25,5 +28,6 @@ let generateFunctionsApp (managed: Managed<AzureNative>) = async {
     // generate function.jsons
     // zip folder
     // zip files can be hosted in blob storage
-    return ()
+    return [| 0x0uy |]
 }
+
