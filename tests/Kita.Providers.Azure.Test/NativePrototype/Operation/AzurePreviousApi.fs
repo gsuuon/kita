@@ -78,7 +78,7 @@ module AppService =
                 .WithConsumptionPricingTier()
                 .CreateAsync()
 
-        printfn "Using app service plan %s" appServicePlan.Name
+        printfn "Using app service plan: %s" appServicePlan.Name
 
         return appServicePlan
 

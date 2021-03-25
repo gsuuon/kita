@@ -1,4 +1,5 @@
 open System
+open FSharp.Control.Tasks
 
 open AzureNativePrototype
 open Kita.Core
@@ -36,7 +37,9 @@ module App =
     let deploy () =
         Managed.empty()
         |> app
-        |> Deploy.deploy "myaznativeapp"
+        |> fun managed ->
+            AzureNative.Run("myaznativeapp", "eastus", managed)
+            |> Async.AwaitTask
             // FIXME enforce lowercase only
             // Same with queue names
             // azure most names must be lowercase i guess?
@@ -44,10 +47,11 @@ module App =
 [<EntryPoint>]
 let main argv =
     let server =
+        printfn "Running"
+
         App.deploy()
         |> Async.RunSynchronously
         |> fun managed ->
             Server.start managed.handlers
 
-    printfn "Deployed.."
     0 // return an integer exit code
