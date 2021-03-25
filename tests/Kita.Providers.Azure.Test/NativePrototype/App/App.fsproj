@@ -3,6 +3,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net5.0</TargetFramework>
+        <NoWarn>NU1605</NoWarn> <!-- Detected package downgrade -->
     </PropertyGroup>
 
     <ItemGroup>
