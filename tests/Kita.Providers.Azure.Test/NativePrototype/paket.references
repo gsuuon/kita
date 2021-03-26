@@ -5,3 +5,4 @@ Azure.ResourceManager.Storage
 AZure.ResourceManager.Resources
 Microsoft.Azure.Management.AppService.Fluent
 Microsoft.Azure.Management.Fluent
+FSharp.Core

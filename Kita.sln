@@ -3,6 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{B1E8E3D5-8492-47A1-BE11-6746F5B8B5AB}"
+	ProjectSection(SolutionItems) = preProject
+		paket.dependencies = paket.dependencies
+	EndProjectSection
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{EC1EFCF6-9D70-4017-9E01-CF0A67575866}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Kita", "src\Kita\Kita.fsproj", "{BDB59924-7770-409D-8BB3-A6C3F571BCBD}"

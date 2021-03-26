@@ -1,0 +1,7 @@
+FSharp.Core
+Azure.Storage.Queues
+ply
+Pulumi.Automation
+Pulumi.FSharp.Azure
+Pulumi.FSharp.AzureNative
+Pulumi.FSharp.Core

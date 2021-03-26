@@ -1,21 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="../Kita/Kita.fsproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="Azure.Identity" Version="1.2.2" />
-        <PackageReference Include="Azure.ResourceManager.Resources" Version="1.0.0-preview.1" />
-        <PackageReference Include="Ply" Version="0.3.1"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Include="Azure.fs" />
-    </ItemGroup>
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Kita/Kita.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Azure.fs" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
