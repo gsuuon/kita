@@ -1,0 +1,7 @@
+Azure.Identity
+Azure.Storage.Blobs
+Azure.Storage.Queues
+Azure.ResourceManager.Storage
+AZure.ResourceManager.Resources
+Microsoft.Azure.Management.AppService.Fluent
+Microsoft.Azure.Management.Fluent
