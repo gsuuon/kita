@@ -7,18 +7,31 @@ open Microsoft.AspNetCore.Mvc
 open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Extensions.Http
 open Microsoft.AspNetCore.Http
-open Newtonsoft.Json
 open Microsoft.Extensions.Logging
+open Newtonsoft.Json
 
 open Giraffe
 open FSharp.Control.Tasks
 
+(* open GiraffePrototype.Program *)
+
 module GiraffeProxy =
+    let connectionString =
+        Environment.GetVariable "Kita_ConnectionString"
+
     let app = 
         choose [
             GET >=> route "/api/hi" >=> htmlString "hi there"
             GET >=> route "/api/hello" >=> htmlString "hello there"
         ]
+
+(*     let app = *)
+(*         Managed.empty() *)
+(*         |> Program.App.app *)
+(*         |> fun managed -> *)
+(*             managed.Attach connectionString; managed *)
+(*         |> fun managed -> *)
+(*             Server.handlersToApp managed.handlers *)
 
     [<FunctionName("GiraffeProxy")>]
     let run

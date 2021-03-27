@@ -4,6 +4,9 @@
     <AzureFunctionsVersion>v3</AzureFunctionsVersion>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../App/App.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="GiraffeDI.fs" />
     <Compile Include="GiraffeProxy.fs" />
   </ItemGroup>
