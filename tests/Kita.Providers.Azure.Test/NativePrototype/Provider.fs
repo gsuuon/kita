@@ -57,7 +57,10 @@ type AzureNative() =
 
         }
 
-    member _.Provision (appName, location) = task {
+    member _.Attach (conString: string) =
+        connectionString.Set conString
+        
+    member this.Provision (appName, location) = task {
         let! rg = Resources.createResourceGroup appName location
         let! sa = Storage.createStorageAccount appName location
 
@@ -69,8 +72,6 @@ type AzureNative() =
 
         for provision in provisionRequests do
             do! provision rgName saName
-
-        connectionString.Set conString
 
         let! appPlan = AppService.createAppServicePlan appName rgName
 
@@ -96,6 +97,8 @@ type AzureNative() =
         let! conString = provider.Provision("myaznativeapp", "eastus")
         let! zipProject = provider.Generate managed
         let! deployment = provider.Deploy(conString, zipProject)
+
+        printfn "Deployed with constring: %s" conString
 
         return managed
     }
