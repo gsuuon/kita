@@ -2,6 +2,7 @@ namespace Company.Function
 
 open System
 open System.IO
+open System.Threading.Tasks
 open Microsoft.AspNetCore.Mvc
 open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Extensions.Http
@@ -9,45 +10,39 @@ open Microsoft.AspNetCore.Http
 open Newtonsoft.Json
 open Microsoft.Extensions.Logging
 
-module GiraffeProxy =
-    // Define a nullable container to deserialize into.
-    [<AllowNullLiteral>]
-    type NameContainer() =
-        member val Name = "" with get, set
+open Giraffe
+open FSharp.Control.Tasks
 
-    // For convenience, it's better to have a central place for the literal.
-    [<Literal>]
-    let Name = "name"
+module GiraffeProxy =
+    let app = 
+        choose [
+            GET >=> route "/api/hi" >=> htmlString "hi there"
+            GET >=> route "/api/hello" >=> htmlString "hello there"
+        ]
 
     [<FunctionName("GiraffeProxy")>]
-    let run ([<HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)>]req: HttpRequest) (log: ILogger) =
-        async {
-            log.LogInformation("F# HTTP trigger function processed a request.")
+    let run
+        ([<HttpTrigger
+            (AuthorizationLevel.Function,
+                "get",
+                "post",
+                Route = "{*any}")>]req: HttpRequest,
+                context: ExecutionContext,
+                log: ILogger)
+        =
+        req.HttpContext.GetHostingEnvironment().ContentRootPath <- context.FunctionAppDirectory
 
-            let nameOpt = 
-                if req.Query.ContainsKey(Name) then
-                    Some(req.Query.[Name].[0])
-                else
-                    None
+        let ret x = x |> Some |> Task.FromResult
 
-            use stream = new StreamReader(req.Body)
-            let! reqBody = stream.ReadToEndAsync() |> Async.AwaitTask
+        { new Microsoft.AspNetCore.Mvc.IActionResult with
+            member _.ExecuteResultAsync(ctx) = task {
+                try
+                    return! app ret ctx.HttpContext
+                with exn ->
+                    log.LogError
+                    <| sprintf "Giraffe proxy errored: %A" exn
+                    let handler =
+                        clearResponse
+                        >=> ServerErrors.INTERNAL_ERROR exn.Message
 
-            let data = JsonConvert.DeserializeObject<NameContainer>(reqBody)
-
-            let name =
-                match nameOpt with
-                | Some n -> n
-                | None ->
-                   match data with
-                   | null -> ""
-                   | nc -> nc.Name
-            
-            let responseMessage =             
-                if (String.IsNullOrWhiteSpace(name)) then
-                    "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                else
-                    "Hello, " +  name + ". This HTTP triggered function executed successfully."
-
-            return OkObjectResult(responseMessage) :> IActionResult
-        } |> Async.StartAsTask
+                    return! handler ret req.HttpContext } :> Task }

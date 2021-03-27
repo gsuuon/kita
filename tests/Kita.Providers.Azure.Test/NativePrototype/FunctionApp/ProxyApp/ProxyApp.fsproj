@@ -4,9 +4,13 @@
     <AzureFunctionsVersion>v3</AzureFunctionsVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="GiraffeDI.fs" />
     <Compile Include="GiraffeProxy.fs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Giraffe" Version="4.1.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.1" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="3.0.11" />
   </ItemGroup>
   <ItemGroup>
