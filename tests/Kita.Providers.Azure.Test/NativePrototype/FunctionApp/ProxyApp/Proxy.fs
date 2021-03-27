@@ -19,12 +19,6 @@ module Proxy =
         Environment.GetEnvironmentVariable "Kita_ConnectionString"
 
     let app =
-        let canonRoute (route: string) =
-            if not (route.StartsWith "/") then
-                "/" + route
-            else
-                route
-
         let routes =
             Managed.empty()
             |> Program.App.app
@@ -90,11 +84,6 @@ module Proxy =
             l.LogInformation
 
         log (sprintf "Proxy handling route: %s" route)
-
-        (* let relRoute = *)
-        (*     let s = route.Split("/api", 2) *)
-        (*     s.[s.Length - 1] *)
-
 
         let handler = app route req.Method log
 
