@@ -85,42 +85,43 @@ module Server =
                 return! next ctx
             }
         
-    let start (routeHandlers: (string * MethodHandler) list) =
-        let webApp =
-            let canonPath (path: string) =
-                if not (path.StartsWith "/") then
-                    "/" + path
-                else
-                    path
+    let handlersToApp (routeHandlers: (string * MethodHandler) list) =
+        let canonPath (path: string) =
+            if not (path.StartsWith "/") then
+                "/" + path
+            else
+                path
 
-            let routeAndWrap path handler =
-                routeCi (canonPath path)
-                >=> wrapHandler handler
+        let routeAndWrap path handler =
+            routeCi (canonPath path)
+            >=> wrapHandler handler
 
-            routeHandlers
-            |> List.map
-                (fun (path, handler) ->
-                    match handler with
-                    | MethodHandler.POST h ->
-                        POST >=> routeAndWrap path h
-                    | MethodHandler.GET h ->
-                        GET >=> routeAndWrap path h
-                )
-            |> choose
+        routeHandlers
+        |> List.map
+            (fun (path, handler) ->
+                match handler with
+                | MethodHandler.POST h ->
+                    POST >=> routeAndWrap path h
+                | MethodHandler.GET h ->
+                    GET >=> routeAndWrap path h
+            )
+        |> choose
 
-        let configureApp (app: IApplicationBuilder) =
-            app.UseGiraffe webApp
+    let configureApp webApp (app: IApplicationBuilder) =
+        app.UseGiraffe webApp
 
-        let configureServices (services: IServiceCollection) =
-            services.AddGiraffe() |> ignore
+    let configureServices (services: IServiceCollection) =
+        services.AddGiraffe() |> ignore
 
+    let start handlers =
         Host.CreateDefaultBuilder()
             .ConfigureWebHostDefaults(
                 fun webHostBuilder ->
                     webHostBuilder
-                        .Configure(configureApp)
+                        .Configure(handlers |> handlersToApp |> configureApp)
                         .ConfigureServices(configureServices)
-                        |> ignore)
+                        |> ignore
+                )
             .Build()
             .Run()
 
