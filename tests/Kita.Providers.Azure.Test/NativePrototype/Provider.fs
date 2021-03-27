@@ -98,6 +98,8 @@ type AzureNative() =
         let! zipProject = provider.Generate managed
         let! deployment = provider.Deploy(conString, zipProject)
 
+        provider.Attach conString
+
         printfn "Deployed with constring: %s" conString
 
         return managed
