@@ -2,11 +2,14 @@ module ProxyApp.Adapt
 
 open System.Net
 open System.Web
-open System.IO
 open System.IO.Pipelines
+open System.Buffers
+open System.Threading.Tasks
+
 open Microsoft.Azure.Functions.Worker.Http
-open Kita.Core.Http
 open FSharp.Control.Tasks
+
+open Kita.Core.Http
 
 let inRequest (req: HttpRequestData) = task {
     let pr = PipeReader.Create(req.Body)
@@ -34,12 +37,14 @@ let inRequest (req: HttpRequestData) = task {
         |> Seq.map (fun x -> x.Name, x.Value)
         |> dict
 
-    return
-        { body = result.Buffer
+    let request : RawRequest =
+        { body = result.Buffer.ToArray()
           queries = queries
           headers = headers
           cookies = cookies
         }
+
+    return request
     }
 
 let outResponse

@@ -14,12 +14,8 @@
 
   <ItemGroup>
     <Compile Include="Adapt.fs" />
-    <Compile Include="GiraffeProxy.fs" />
+    <Compile Include="Proxy.fs" />
     <Compile Include="Program.fs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Giraffe" Version="4.1.0" />
   </ItemGroup>
 
   <ItemGroup>
