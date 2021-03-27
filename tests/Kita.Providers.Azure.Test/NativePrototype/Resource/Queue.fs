@@ -26,9 +26,6 @@ type Queue<'T>(?name: string) =
             QueueClient(conString, name) |> queueClient.Set
         } |> Async.Start
 
-    member this.Deploy(x) = this.Attach(x)
-        // TODO rename this to Attach
-
     member _.Enqueue item = async {
         let! client = queueClient.GetAsync
         let! sendReceiptRes =
