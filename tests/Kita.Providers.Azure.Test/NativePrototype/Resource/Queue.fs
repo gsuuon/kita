@@ -49,6 +49,7 @@ type Queue<'T>(?name: string) =
         return () }
 
     member _.Dequeue (count: int) = async {
+        // TODO send read receipt to actually dequeue messages
         let! client = queueClient.GetAsync
 
         let! rMsgs = client.ReceiveMessagesAsync count |> Async.AwaitTask
