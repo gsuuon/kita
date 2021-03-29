@@ -92,6 +92,10 @@ type AzureNative() =
         // FIXME how do I hide the type of location?
         // typed location makes it hard to have 1 line change to switch
         // vendor platform
+
+        // FIXME enforce lowercase only
+        // Same with queue names
+        // azure most names must be lowercase i guess?
         let provider = managed.provider
 
         let! conString = provider.Provision("myaznativeapp", "eastus")

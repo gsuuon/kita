@@ -1,4 +1,4 @@
-namespace Company.Function
+namespace ProxyApp
 
 open FSharp.Control.Tasks
 
