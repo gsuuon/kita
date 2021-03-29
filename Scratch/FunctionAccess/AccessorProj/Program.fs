@@ -21,13 +21,13 @@ open System
 open System.Reflection
 
 let doThing () =
+    /// Finds the PropertyInfo of the member of parentType which has type of memberType
+    /// Throws if not found
     let getMemberOfType (parentType: Type) (memberType: Type) =
-        printfn "Looking for type: %A" memberType
         parentType.GetMembers()
         |> Array.choose
             (fun mi ->
                 if mi.MemberType = MemberTypes.Property then
-                    printfn "Found property: %A" (mi :?> PropertyInfo)
                     Some (mi :?> PropertyInfo)
                 else
                     None
@@ -38,43 +38,38 @@ let doThing () =
                 staticValue.GetType() = memberType
             )
 
-    let getAccessAddressOf v =
-        // I need to 
-        printfn "processFn nameOf: %s" (nameof v)
+    let canReadStatic (propertyInfo: PropertyInfo) =
+        propertyInfo.CanRead &&
+            let getMethod = propertyInfo.GetGetMethod()
+            getMethod.IsStatic
 
+    let getStaticAccessPath v =
         let typ = v.GetType()
-        typ.FullName |> printfn "FullName: %A"
-        typ.DeclaringType.FullName |> printfn "Declaring: %A"
-        // I could use reflection to find the member of the declaring type that has the typ?
 
-        let membr = getMemberOfType typ.DeclaringType typ
-        printfn "Member: %A" membr
+        let propInfo = getMemberOfType typ.DeclaringType typ
+
+        if not (canReadStatic propInfo) then
+            failwith "The value needs to be a public static property"
+
         let accessor =
-            let memberName = membr.Name
-            let typeName = membr.DeclaringType.FullName
-
             let canonTypeName (name: string) =
                 let withoutGenerics = name.Split("`").[0]
                 withoutGenerics.Replace ("+", ".")
 
-            printfn "Type: %s Member: %s" typeName memberName
+            $"{canonTypeName propInfo.DeclaringType.FullName}.{propInfo.Name}"
 
-            $"{canonTypeName typeName}.{memberName}"
+        accessor
 
-        printfn "Accessor: %s" accessor
+    let getAndReport x =
+        let accessor = getStaticAccessPath x
+        printfn "Value: %A\nPath: %s" x accessor
 
-        ()
-
-    getAccessAddressOf Container.addOne
-    getAccessAddressOf Container.Nested.addTwo
-    getAccessAddressOf Container.Nested.Deeper.addThree
-        // I want to get "AccessorProj.Container.addOne"
+    getAndReport Container.addOne
+    getAndReport Container.Nested.addTwo
+    getAndReport Container.Nested.Deeper.addThree
 
 [<EntryPoint>]
 let main _argv =
-    (* let v = adder 1 *)
-    (* printfn "Value with one was: %A" v *)
-
     doThing()
 
     0
