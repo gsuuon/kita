@@ -13,7 +13,6 @@
     <ProjectReference Include="../NativePrototype.fsproj" />
     <ProjectReference Include="../../../../src/Kita/Kita.fsproj" />
     <ProjectReference Include="../../../../src/Kita.Resources/Kita.Resources.fsproj" />
-    <ProjectReference Include="../../../Kita.Providers.Local.Test/GiraffePrototype/GiraffePrototype.fsproj" />
   </ItemGroup>
   <Import Project="..\..\..\..\.paket\Paket.Restore.targets" />
 </Project>
