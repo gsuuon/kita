@@ -14,6 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../../src/Kita.Resources/Kita.Resources.fsproj" />
+    <ProjectReference Include="../../../src/Kita.Compile/Kita.Compile.fsproj" />
   </ItemGroup>
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

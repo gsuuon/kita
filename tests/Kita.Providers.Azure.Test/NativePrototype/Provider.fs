@@ -23,8 +23,8 @@ type AzureNative() =
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 
-    member _.Generate managed =
-        GenerateProject.generateFunctionsAppZip managed
+    member _.Generate app =
+        GenerateProject.generateFunctionsAppZip app
 
     member _.Deploy (conString, generatedZip: byte[]) = task {
         let blobs = Blobs(conString)
@@ -87,8 +87,21 @@ type AzureNative() =
 
         }
         
-    static member Run (appName, location, managed: Managed<AzureNative>)
-        = task {
+    static member Run
+        (
+            appName,
+            location,
+            app: Managed<AzureNative> -> Managed<AzureNative>
+        ) =
+        AzureNative.Run(appName, location, Managed.empty(), app)
+
+    static member Run
+        (
+            appName,
+            location,
+            start,
+            app: Managed<AzureNative> -> Managed<AzureNative>
+        ) = task {
         // FIXME how do I hide the type of location?
         // typed location makes it hard to have 1 line change to switch
         // vendor platform
@@ -96,11 +109,14 @@ type AzureNative() =
         // FIXME enforce lowercase only
         // Same with queue names
         // azure most names must be lowercase i guess?
+
+        let managed = start |> app
         let provider = managed.provider
 
         let! conString = provider.Provision("myaznativeapp", "eastus")
-        let! zipProject = provider.Generate managed
         let! deployment = provider.Deploy(conString, zipProject)
+        let! zipProject = provider.Generate app
+        printfn "Generated zip project"
 
         provider.Attach conString
 
