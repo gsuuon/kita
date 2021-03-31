@@ -37,10 +37,9 @@ module App =
 
 [<EntryPoint>]
 let main argv =
-    let server =
-        printfn "Running"
+    let managed =
+        printfn "Deploying"
 
-        App.deploy()
-        |> Async.RunSynchronously
+        App.deploy().Wait()
 
     0 // return an integer exit code

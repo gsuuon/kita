@@ -30,6 +30,9 @@ module Reflect =
     let getStaticAccessPath v =
         let typ = v.GetType()
 
+        if typ.DeclaringType = null then
+            failwithf "Declaring type was null for type: %A" typ
+
         let propInfo = getMemberOfType typ.DeclaringType typ
 
         if not (canReadStatic propInfo) then

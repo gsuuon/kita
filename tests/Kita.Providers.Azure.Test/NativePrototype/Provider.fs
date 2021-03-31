@@ -11,6 +11,8 @@ open AzureNextApi
 open AzurePreviousApi
 open Kita.Core
 
+open System.IO
+
 type AzureNative() =
     inherit Provider("Azure.Native")
     let defaultLocation = "eastus"
@@ -24,7 +26,10 @@ type AzureNative() =
     member val OnConnection = connectionString.OnSet
 
     member _.Generate app =
-        GenerateProject.generateFunctionsAppZip app
+        GenerateProject.generateFunctionsAppZip
+            (Path.Join(__SOURCE_DIRECTORY__, "ProxyFunctionApp"))
+            "AutoReplacedReference.fs"
+            app
 
     member _.Deploy (conString, generatedZip: byte[]) = task {
         let blobs = Blobs(conString)
