@@ -17,13 +17,15 @@ module Proxy =
 
     let connectionString =
         Environment.GetEnvironmentVariable "Kita_ConnectionString"
+        // TODO this needs to be a generated name
 
     let app =
         let routes =
             Managed.empty()
-            |> Program.App.app
-                // TODO user app
+            |> ProxyApp.AutoReplacedReference.app
             |> fun managed ->
+                // This depends on the replaced Kita_AssemblyReference
+                // defining this
                 managed.provider.Attach connectionString; managed
             |> fun managed ->
                 managed.handlers
