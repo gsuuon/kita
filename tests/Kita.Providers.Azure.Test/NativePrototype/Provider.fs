@@ -28,10 +28,9 @@ type AzureNative() =
     member _.Generate app =
         GenerateProject.generateFunctionsAppZip
             (Path.Join(__SOURCE_DIRECTORY__, "ProxyFunctionApp"))
-            "AutoReplacedReference.fs"
             app
 
-    member _.Deploy (conString, generatedZip: byte[]) = task {
+    member _.Deploy (conString, functionApp, generatedZip: byte[]) = task {
         let blobs = Blobs(conString)
 
         let! blobContainerClient =
@@ -49,12 +48,10 @@ type AzureNative() =
                 1.0
                 blobClient
 
-        (* let! deployment = *)
-        (*     functionApp *)
-        (*         .Deploy() *)
-        (*         .WithPackageUri(blobUri.AbsoluteUri) *)
-        (*         .WithExistingDeploymentsDeleted(false) *)
-        (*         .ExecuteAsync() *)
+        let! deployment =
+            AppService.deployFunctionApp
+                blobUri.AbsoluteUri
+                functionApp
 
         printfn "Blob sas uri:\r\n%s" blobUri.AbsoluteUri
 
@@ -88,7 +85,7 @@ type AzureNative() =
 
         printfn "Using function app: %s" functionApp.Name
 
-        return conString
+        return conString, functionApp
 
         }
         
@@ -115,13 +112,25 @@ type AzureNative() =
         // Same with queue names
         // azure most names must be lowercase i guess?
 
+        // TODO generate app-namespaced connection string env variable
+        // Use SetParameters in IFunctionApp.Deploy()..
+        // Directly set into environment for local deploy
+        // Or use local.settings.json? Would make it straightforward to use
+        // local hosting to debug
+        // -- I think I'd need both, if the process isnt started using azure func
+        // -- e.g the server is Local / Giraffe, the env variable still needs to be there
+
         let managed = start |> app
         let provider = managed.provider
 
-        let! conString = provider.Provision("myaznativeapp", "eastus")
-        let! deployment = provider.Deploy(conString, zipProject)
-        let! zipProject = provider.Generate app
         printfn "Generated zip project"
+
+        let! (conString, functionApp) =
+            provider.Provision("myaznativeapp", "eastus")
+        let! zipProject =
+            provider.Generate app
+        let! deployment =
+            provider.Deploy(conString, functionApp, zipProject)
 
         provider.Attach conString
 

@@ -88,15 +88,17 @@ module AppService =
         blobUri
         (functionApp: IFunctionApp)
         = task {
+        // TODO Set kita parameters here
 
         let! deployment =
             functionApp
                 .Deploy()
                 .WithPackageUri(blobUri)
+                .WithExistingDeploymentsDeleted(true)
                 .ExecuteAsync()
 
         printfn "Deployed %s with %s" functionApp.Name blobUri
 
-        return ()
+        return deployment
 
         }
