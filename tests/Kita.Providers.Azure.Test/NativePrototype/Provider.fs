@@ -36,11 +36,12 @@ type AzureNative() =
         let! blobContainerClient =
             blobs.BlobContainerClient "deploy-zips-azure"
 
-        let blobClient = blobContainerClient.GetBlobClient("latest-deploy")
+        let blobClient = blobContainerClient.GetBlobClient("latest-deploy.zip")
 
-        let! _info =
-            use mem = new System.IO.MemoryStream(generatedZip)
-            blobClient.UploadAsync(mem, true) |> rValue
+        use mem = new System.IO.MemoryStream(generatedZip)
+        let! _info = blobClient.UploadAsync(mem, true) |> rValue
+
+        printfn "Uploaded blob"
 
         let! blobUri =
             Blobs.BlobGenerateSas
@@ -48,14 +49,15 @@ type AzureNative() =
                 1.0
                 blobClient
 
+        printfn "Blob sas uri:\r\n%s" blobUri.AbsoluteUri
+
         let! deployment =
             AppService.deployFunctionApp
+                conString
                 blobUri.AbsoluteUri
                 functionApp
 
-        printfn "Blob sas uri:\r\n%s" blobUri.AbsoluteUri
-
-        return ()
+        return deployment
 
         }
 
@@ -63,6 +65,7 @@ type AzureNative() =
         connectionString.Set conString
         
     member this.Provision (appName, location) = task {
+        printfn "Provisioning %s for %s" appName location
         let! rg = Resources.createResourceGroup appName location
         let! sa = Storage.createStorageAccount appName location
 
@@ -120,21 +123,34 @@ type AzureNative() =
         // -- I think I'd need both, if the process isnt started using azure func
         // -- e.g the server is Local / Giraffe, the env variable still needs to be there
 
+
+        // I can use command-line configuration provider to inject keys
+        // https://docs.microsoft.com/en-us/dotnet/core/extensions/configuration-providers#command-line-configuration-provider
+        // Not sure how I would use this with zipdeploy?
+        // Could be useful for local provider
+
         let managed = start |> app
         let provider = managed.provider
 
-        printfn "Generated zip project"
+        let provisionWork = provider.Provision(appName, location)
+        let zipProjectWork = provider.Generate app
+            // TODO contextualize the logs of each process
+            // logging channels
 
-        let! (conString, functionApp) =
-            provider.Provision("myaznativeapp", "eastus")
-        let! zipProject =
-            provider.Generate app
-        let! deployment =
-            provider.Deploy(conString, functionApp, zipProject)
+        let! (conString, functionApp) = provisionWork
+        let! zipProject = zipProjectWork
+        printfn "Generated zip project"
+            // FIXME zip can fail if reference dlls are in use? (eg by an lsp server)
+            // but we're only trying to copy
+            // is there some way around this?
+        let! deployment = provider.Deploy(conString, functionApp, zipProject)
+        do! functionApp.SyncTriggersAsync()
 
         provider.Attach conString
 
-        printfn "Deployed with constring: %s" conString
+        printfn "Deployed app -- https://%s" functionApp.DefaultHostName
+        let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "proxyKey", null)
+        printfn "Key -- %s | %s" funKey.Name funKey.Value
 
         return managed
     }

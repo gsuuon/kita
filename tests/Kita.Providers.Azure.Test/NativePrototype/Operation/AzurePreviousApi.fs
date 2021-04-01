@@ -85,10 +85,42 @@ module AppService =
         }
 
     let deployFunctionApp
+        kitaConnectionString
         blobUri
         (functionApp: IFunctionApp)
         = task {
-        // TODO Set kita parameters here
+
+        let settings =
+            [ "WEBSITE_RUN_FROM_PACKAGE", "0"
+                // WEBSITE_RUN_FROM_PACKAGE = 1 fails
+                // During deployment, there's an attempt to
+                // create a directory at wwwroot which fails because
+                // it becomes read-only. Works fine if I use
+                // the cli to upload the zip. Doesn't work if
+                // I use the package uri here. Not sure what's up.
+                // Check Notes.md for actual error.
+              "SCM_DO_BUILD_DURING_DEPLOYMENT", "false"
+              "FUNCTIONS_EXTENSION_VERSION", "~3"
+              "FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated"
+              "Kita_ConnectionString", kitaConnectionString
+            ] |> dict
+
+        printfn "Using app settings:\n%s"
+                (settings
+                |> Seq.map
+                    (fun (KeyValue(k,v)) ->
+                        if k.Contains "ConnectionString" then
+                            sprintf "%A = <connection string>" k
+                        else
+                            sprintf "%A = %A" k v
+                    )
+                |> String.concat "\n")
+
+        let! functionApp =
+            functionApp
+                .Update()
+                .WithAppSettings(settings)
+                .ApplyAsync()
 
         let! deployment =
             functionApp
