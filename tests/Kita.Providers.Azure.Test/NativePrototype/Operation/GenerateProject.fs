@@ -1,5 +1,6 @@
 module AzureNativePrototype.GenerateProject
 
+open System
 open System.IO
 open System.IO.Compression
 
@@ -197,37 +198,63 @@ module Builder =
 
         File.ReadAllBytes(publishedZipPath)
 
-let generateFunctionsAppZip
+let rec generateFunctionsAppZip
     (proxyAppPath: string)
     (app: Managed<_> -> Managed<_>)
         // We don't actually care what provider is here I think
     = task {
-    let proxyProjPath = Path.Join(".kita","Proxy")
+    try
+        let proxyProjPath = Path.Join(".kita","Proxy")
+        printfn "Generating from template at %s" proxyProjPath
 
-    transformFilesToArchive
-    <| proxyAppPath
-    <| fun relativePath fileText ->
-        if relativePath = "AutoReplacedReference.fs" then
-            replaceAppReference app fileText
-        else if relativePath.EndsWith ".fsproj" then
-            replaceProjectReference proxyAppPath app fileText
-        // TODO generate app-namespaced connection string env variable
-        else
-            fileText
-    <| fun archive ->
-        // NOTE I'd massively prefer to do all this in-memory and avoid
-        // a lot of potential file access exceptions. All of this is
-        // transient noise and doesn't need to be persisted.
-        // I couldn't find any way to call dotnet build on in-memory files
-        // or with a zip archive
-        if Directory.Exists proxyProjPath then
-            Directory.Delete(proxyProjPath, true)
+        transformFilesToArchive
+        <| proxyAppPath
+        <| fun relativePath fileText ->
+            if relativePath = "AutoReplacedReference.fs" then
+                replaceAppReference app fileText
+            else if relativePath.EndsWith ".fsproj" then
+                replaceProjectReference proxyAppPath app fileText
+            // TODO generate app-namespaced connection string env variable
+            else
+                fileText
+        <| fun archive ->
+            // NOTE I'd massively prefer to do all this in-memory and avoid
+            // a lot of potential file access exceptions. All of this is
+            // transient noise and doesn't need to be persisted.
+            // I couldn't find any way to call dotnet build on in-memory files
+            // or with a zip archive
+            if Directory.Exists proxyProjPath then
+                Directory.Delete(proxyProjPath, true)
 
-        Directory.CreateDirectory proxyProjPath |> ignore
+            Directory.CreateDirectory proxyProjPath |> ignore
 
-        archive.ExtractToDirectory proxyProjPath
+            archive.ExtractToDirectory proxyProjPath
 
-    let archiveBytes = publishDotnetToArchive proxyProjPath
+        let archiveBytes = publishDotnetToArchive proxyProjPath
 
-    return archiveBytes
+        return archiveBytes
+    with
+    | :? IOException as e->
+        // If a file is in use, give the user a chance to handle it
+        printfn "IO Exception:\n%A" e
+        printfn "[r]etry | [a]bort"
+
+        let rec readKey timeLeft =
+            let interval = 100
+            if Console.KeyAvailable then
+                Some <| Console.ReadKey().KeyChar
+            else if timeLeft < 0 then
+                None
+            else
+                System.Threading.Thread.Sleep interval
+                readKey (timeLeft - interval)
+
+        match readKey 10000 with
+        | Some 'r' ->
+            return! generateFunctionsAppZip proxyAppPath app
+        | None
+        | Some 'a'
+        | Some _ ->
+            printfn "Aborted!"
+            return raise e
 }
