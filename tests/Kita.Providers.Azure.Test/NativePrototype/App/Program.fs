@@ -11,6 +11,9 @@ module App =
     let azure = infra'<AzureNative>
 
     let app = azure "myaznativeapp" {
+        // TODO name is thrown away
+        // This should be the app name
+        // app names must be between 2-60 characters alphanumeric + non-leading hyphen
         let! q = Resource.Queue<string>("myaznatq")
 
         route "hi" [
@@ -33,7 +36,8 @@ module App =
     }
 
     let deploy () =
-        AzureNative.Run("myaznativeapp", "eastus", app)
+        AzureNative.Run("myaznativeapp2", "eastus", app)
+            // TODO this should be the resourcegroup name
 
 [<EntryPoint>]
 let main argv =

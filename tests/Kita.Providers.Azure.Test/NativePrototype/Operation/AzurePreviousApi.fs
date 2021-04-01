@@ -74,6 +74,7 @@ module AppService =
             azure.AppServices.AppServicePlans
                 .Define(appServicePlanName)
                 .WithRegion(Region.USEast)
+                    // TODO non-fixed region
                 .WithExistingResourceGroup(rgName)
                 .WithConsumptionPricingTier()
                 .CreateAsync()
