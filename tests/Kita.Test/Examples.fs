@@ -4,6 +4,7 @@ open Kita.Core
 open Kita.Core.Infra
 open Kita.Core.Http
 open Kita.Core.Http.Helpers
+open Kita.Core.Http.Helpers.Handlers
 open Kita.Resources
 open Kita.Resources.Collections
 open Kita.Providers
@@ -12,7 +13,7 @@ let infra = infra'<Azure>
 
 let cloudAbout =
     infra "about" {
-        route "about" [ ok "this is kita" |> asyncReturn |> konst |> GET ] }
+        route "about" [ ok "this is kita" |> asyncReturn |> konst |> get ] }
 
 let cloudDebug (klog: CloudLog) =
     infra'<Local> "debug" {
@@ -23,7 +24,7 @@ let cloudDebug (klog: CloudLog) =
             [ ok "You found the admin route"
               |> asyncReturn
               |> konst
-              |> GET ]
+              |> get ]
     }
 
 let cloudProcs debug =
@@ -45,8 +46,8 @@ let cloudProcs debug =
 
         route
             "status"
-            [ GET
-              <| fun _ -> async { return { status = OK; body = "All good" } } ]
+            [ get <| fun _ ->
+                async { return { status = OK; body = "All good" } } ]
 
         nest (gated debug <| cloudDebug klog)
             // Conditional nesting, mixed provider
@@ -73,29 +74,27 @@ let cloudMain =
 
         route
             "save"
-            [ GET
-              <| fun req ->
+            [ get <| fun req ->
                   async {
                       match! saves.TryFind req.queries.["sid"] with
                       | Some s -> return { status = OK; body = s }
                       | None -> return { status = NOTFOUND; body = "🤷" }
                   }
 
-              POST
-              <| fun req ->
+              post <| fun req ->
                   async {
-                      pendingSaves.Enqueue req.body
+                      do! pendingSaves.Enqueue req.body
                       return { status = OK; body = "You're in" }
                   } ]
 
         route
             "sign_in"
-            [ POST
-              <| fun req ->
+            [ post <| fun req ->
                   async {
-                      if req.body.Length > 0 then
+                      match Seq.tryHead req.body with
+                      | Some _ ->
                           return { status = OK; body = "You're in" }
-                      else
+                      | None ->
                           return
                               { status = NOTFOUND
                                 body = "Who are you?" }

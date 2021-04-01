@@ -3,6 +3,8 @@ module Kita.Test.MixedProvider
 open Kita.Core
 open Kita.Core.Http
 open Kita.Core.Http.Helpers
+open Kita.Core.Http.Helpers.Handlers
+
 open Kita.Resources
 open Kita.Resources.Collections
 open Kita.Providers
@@ -22,10 +24,9 @@ let mixBotWRoute =
 
         route
             "hello"
-            [ POST
-              <| fun req ->
+            [ post <| fun req ->
                   async {
-                      queue.Enqueue req.body
+                      do! queue.Enqueue req.body
                       return ok "Got it"
                   } ]
 
@@ -41,10 +42,9 @@ let mixTopWRoute =
 
         route
             "hello"
-            [ POST
-              <| fun req ->
+            [ post <| fun req ->
                   async {
-                      queue.Enqueue req.body
+                      do! queue.Enqueue req.body
                       return ok "Got it"
                   } ]
     }
@@ -57,7 +57,7 @@ let mixMidWRoute =
 
         route
             "hello"
-            [ POST
+            [ post
               <| fun req ->
                   async {
                       queue.Enqueue req.body
@@ -71,8 +71,7 @@ let mixBotCondWRoute =
 
         route
             "hello"
-            [ POST
-              <| fun req ->
+            [ post <| fun req ->
                   async {
                       queue.Enqueue req.body
                       return ok "Got it"
