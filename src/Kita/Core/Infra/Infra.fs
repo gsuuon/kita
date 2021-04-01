@@ -2,6 +2,7 @@ namespace Kita.Core
 
 open Kita.Providers
 open Kita.Resources
+open Kita.Core.Http
 
 [<AutoOpen>]
 module Helper =
@@ -95,13 +96,13 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
 
             print s "Route" path
 
-            handlers
-            |> List.iter
-                (fun handler ->
-                    print s "Handler" (handler.GetType().FullName))
+            let pathedHandlers = handlers |> List.map (fun h -> h path)
+
+            pathedHandlers
+            |> List.iter (fun mh -> print s "Handler" mh.handler)
 
             ctx,
-            s |> addRoutes (List.map (fun x -> path, x) handlers)
+            s |> addRoutes (List.map (fun x -> path, x) pathedHandlers)
 
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind = true)>]
     member inline _.Proc

@@ -35,14 +35,6 @@ type HandlerAdapter<'T, 'R> =
     Handler<'T, 'R> -> RequestAdapter<'T> -> ResponseAdapter<'T> -> RawHandler
 
 type MethodHandler =
-    | GET of RawHandler
-    | POST of RawHandler with
-    member this.MethodString () =
-            match this with
-            | GET _ -> "GET"
-            | POST _ -> "POST"
-    member this.Handler () =
-            match this with
-            | GET h
-            | POST h -> h
-
+    { route : string
+      method : string
+      handler : RawHandler }
