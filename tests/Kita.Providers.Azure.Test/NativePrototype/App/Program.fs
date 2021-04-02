@@ -17,14 +17,14 @@ module App =
         let! q = Resource.Queue<string>("myaznatq")
 
         route "hi" [
-            GET <| fun _ -> async {
+            get <| fun _ -> async {
                 let! xs = q.Dequeue 20
                 return
                     sprintf "Got %A" xs
                     |> ok
             }
 
-            POST <| fun req -> async {
+            post <| fun req -> async {
                 let text =
                     req.body
                     |> Seq.toArray
