@@ -140,6 +140,14 @@ module Zipper =
         |> replaceAppProjectReference
         |> replaceRelativeProjectReferences
 
+    let replaceLocalSettings conString fileText =
+        let replaceTarget = "<Kita_ConnectionString>"
+
+        findAndReplaceLine
+        <| fun line -> line.Contains replaceTarget
+        <| fun line -> line.Replace(replaceTarget, conString)
+        <| fileText
+
 [<AutoOpen>]
 module Builder = 
     open System.Diagnostics
@@ -202,6 +210,7 @@ let rec generateFunctionsAppZip
     (proxyAppPath: string)
     (app: Managed<_> -> Managed<_>)
         // We don't actually care what provider is here I think
+    conString
     = task {
     try
         let proxyProjPath = Path.Join(".kita","Proxy")
@@ -215,6 +224,8 @@ let rec generateFunctionsAppZip
             else if relativePath.EndsWith ".fsproj" then
                 replaceProjectReference proxyAppPath app fileText
             // TODO generate app-namespaced connection string env variable
+            else if relativePath.EndsWith "local.settings.json" then
+                replaceLocalSettings conString fileText
             else
                 fileText
         <| fun archive ->
@@ -251,7 +262,7 @@ let rec generateFunctionsAppZip
 
         match readKey 10000 with
         | Some 'r' ->
-            return! generateFunctionsAppZip proxyAppPath app
+            return! generateFunctionsAppZip proxyAppPath app conString
         | None
         | Some 'a'
         | Some _ ->

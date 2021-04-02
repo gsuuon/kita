@@ -25,10 +25,11 @@ type AzureNative() =
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 
-    member _.Generate app =
+    member _.Generate(app, conString) =
         GenerateProject.generateFunctionsAppZip
             (Path.Join(__SOURCE_DIRECTORY__, "ProxyFunctionApp"))
             app
+            conString
 
     member _.Deploy (conString, functionApp, generatedZip: byte[]) = task {
         let blobs = Blobs(conString)
@@ -64,7 +65,7 @@ type AzureNative() =
     member _.Attach (conString: string) =
         connectionString.Set conString
         
-    member this.Provision (appName, location) = task {
+    member _.ProvisionGroup (appName, location) = task {
         printfn "Provisioning %s for %s" appName location
         let! rg = Resources.createResourceGroup appName location
         let! sa = Storage.createStorageAccount appName location
@@ -73,8 +74,12 @@ type AzureNative() =
         let saName = sa.Name
 
         let! key = Storage.getFirstKey rgName saName
-        let conString = Storage.formatKeyToConnectionString key saName
 
+        return Storage.formatKeyToConnectionString key saName, rgName, saName
+
+        }
+
+    member _.Provision (appName, conString, rgName, saName) = task {
         for provision in provisionRequests do
             do! provision rgName saName
 
@@ -123,7 +128,6 @@ type AzureNative() =
         // -- I think I'd need both, if the process isnt started using azure func
         // -- e.g the server is Local / Giraffe, the env variable still needs to be there
 
-
         // I can use command-line configuration provider to inject keys
         // https://docs.microsoft.com/en-us/dotnet/core/extensions/configuration-providers#command-line-configuration-provider
         // Not sure how I would use this with zipdeploy?
@@ -132,8 +136,9 @@ type AzureNative() =
         let managed = start |> app
         let provider = managed.provider
 
-        let provisionWork = provider.Provision(appName, location)
-        let zipProjectWork = provider.Generate app
+        let! (conString, rgName, saName) = provider.ProvisionGroup(appName, location)
+        let provisionWork = provider.Provision(appName, conString, rgName, saName)
+        let zipProjectWork = provider.Generate(app, conString)
             // TODO contextualize the logs of each process
             // logging channels
 
