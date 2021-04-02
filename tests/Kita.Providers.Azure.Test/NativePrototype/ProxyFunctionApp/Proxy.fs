@@ -14,6 +14,7 @@ module Proxy =
 
     open Kita.Core
     open Kita.Core.Http
+    open Kita.Core.Http.Helpers
 
     let connectionString =
         Environment.GetEnvironmentVariable "Kita_ConnectionString"
@@ -52,11 +53,11 @@ module Proxy =
             a.ToLower() = b.ToLower()
 
         fun route methd log ->
-            log (sprintf "Matching route: %s %s" route methd)
+            log (sprintf "Matching route: %s & method: %s" route methd)
 
             match routes.TryGetValue route with
             | true, handlers ->
-                match handlers.TryGetValue methd with
+                match handlers.TryGetValue (canonMethod methd) with
                 | true, handler -> handler
                 | false, _ ->
                     log "Route doesn't handle method"

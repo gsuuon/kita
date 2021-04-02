@@ -14,3 +14,6 @@ module Handlers =
 
     let get = asHandler "get"
     let post = asHandler "post"
+
+    let canonMethod (methodString: string) =
+        methodString.ToLower()
