@@ -17,18 +17,11 @@ module State =
         { state with
               handlers = state.handlers @ pathHandlers }
 
-    let addName name state =
-        { state with
-              names = name :: state.names }
+    let addNested child parent =
+        { parent with
+            nested = parent.nested.Add (child.name, child) }
+
+    let setName name managed =
+        { managed with name = name }
 
     let ret x = State(fun s -> x, s)
-
-    /// Returns type of stateA
-    let combine stateA stateB =
-        { stateA with
-              handlers = stateA.handlers @ stateB.handlers
-              resources = stateA.resources @ stateB.resources
-              names = stateA.names @ stateB.names }
-
-    let convert state =
-        combine <| Managed.empty<'T> () <| state

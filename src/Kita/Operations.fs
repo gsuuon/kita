@@ -4,10 +4,10 @@ open Kita.Core
 
 let teardown state =
     printfn
-        "Teardown %i handlers, %i resources from %i blocks"
+        "Teardown %i handlers, %i resources from app %s"
         state.handlers.Length
         state.resources.Length
-        state.names.Length
+        state.name
 
 let deploy name (state: Managed<_>) =
     (*
@@ -18,11 +18,11 @@ let deploy name (state: Managed<_>) =
     - [x] i can use srtp here just to enforce the existence of deploy without executing it. i wait until the end to execute.
 *)
     printfn
-        "Deploying %s\n%i handlers, %i resources from %i blocks"
+        "Deploying %s\n%i handlers, %i resources from app %s"
         name
         state.handlers.Length
         state.resources.Length
-        state.names.Length
+        state.name
 
     printfn "%A" state
     ()

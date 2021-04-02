@@ -7,8 +7,9 @@ open Kita.Resources
 type Managed<'Provider> =
     { resources: CloudResource list
       handlers: MethodHandler list
-      names: string list
-      provider: 'Provider }
+      name: string
+      provider: 'Provider
+      nested : Map<string, Managed<Provider>> }
 
 module Managed =
     let inline empty<'Provider
@@ -17,10 +18,6 @@ module Managed =
         =
         { resources = []
           handlers = []
-          names = []
-          provider = new 'Provider() }
-
-    let getName managed =
-        match List.tryHead managed.names with
-        | Some n -> n
-        | None -> ""
+          name = ""
+          provider = new 'Provider()
+          nested = Map.empty }

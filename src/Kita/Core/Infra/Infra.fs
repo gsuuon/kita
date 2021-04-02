@@ -8,7 +8,7 @@ open Kita.Core.Http
 module Helper =
     let inline print (m: Managed<'a>) label item =
         printfn "%s| %s: %A"
-        <| match Managed.getName m with
+        <| match m.name with
            | "" -> "anon"
            | x -> x
         <| label
@@ -66,19 +66,9 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
 
     member inline x.Run(State m) : Managed<'a> -> Managed< ^Provider > =
         fun s ->
-
             print s "run" ""
 
-            s |> addName x.Name |> m |> snd
-
-    member inline _.Combine(State mA, State mB) =
-        State
-        <| fun stateA ->
-
-            let ((), stateA) = mA stateA
-            let (y, stateB) = mB (convert stateA)
-
-            y, (convert stateB)
+            s |> setName x.Name |> m |> snd
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind = true)>]
     member inline _.Route
@@ -142,27 +132,18 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
         <| fun state ->
             let (ctx, s) = m state
 
-            let joinNested = getNested ctx
+            let runNested = getNested ctx
+            
+            let nested = Managed.empty() |> runNested
 
-            ctx, 
-            s
-            |> convert
-                // inner state may be a different Provider, ie different specialization of Managed
-            |> joinNested
-            |> combine
-                // Convert back to original provider type
-                { provider = s.provider
-                  handlers = []
-                  resources = []
-                  names = []
-                  }
-
-
+            ctx,
+            addNested nested s
 and Named(name: string) =
     // Gets around issues with inline accessing private data and SRTP:
     // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
     // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
     member val Name = name
+
 
 module Infra =
     let inline infra'< ^Provider
