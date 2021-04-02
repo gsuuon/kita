@@ -85,7 +85,7 @@ module Server =
                 return! next ctx
             }
         
-    let handlersToApp (routeHandlers: (string * MethodHandler) list) =
+    let handlersToApp (routeHandlers: MethodHandler list) =
         let canonPath (path: string) =
             if not (path.StartsWith "/") then
                 "/" + path
@@ -98,12 +98,14 @@ module Server =
 
         routeHandlers
         |> List.map
-            (fun (path, handler) ->
-                match handler with
-                | MethodHandler.POST h ->
-                    POST >=> routeAndWrap path h
-                | MethodHandler.GET h ->
-                    GET >=> routeAndWrap path h
+            (fun mh ->
+                let verb =
+                    match mh.method with
+                    | "post" -> POST
+                    | "get" -> GET
+                    | x -> failwithf "Unknown method: %s" x
+
+                verb >=> routeAndWrap mh.route mh.handler
             )
         |> choose
 
@@ -136,10 +138,10 @@ module App =
     let localApp =
         local "testApp" {
             route "hello" [
-                ok "Hows it going" |> asyncReturn |> konst |> GET
+                ok "Hows it going" |> asyncReturn |> konst |> get
             ]
             route "/hi" [
-                ok "Hi there" |> asyncReturn |> konst |> GET
+                ok "Hi there" |> asyncReturn |> konst |> get
             ]
         }
         <| Managed.empty()
