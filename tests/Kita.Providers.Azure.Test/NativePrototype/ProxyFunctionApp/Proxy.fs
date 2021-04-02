@@ -24,26 +24,21 @@ module Proxy =
             Managed.empty()
             |> ProxyApp.AutoReplacedReference.app
             |> fun managed ->
-                // This depends on the replaced Kita_AssemblyReference
-                // defining this
                 managed.provider.Attach connectionString; managed
+                    // This depends on the replaced Kita_AssemblyReference
             |> fun managed ->
                 managed.handlers
                 |> Seq.fold
-                    (fun (routes: Dictionary<_,Dictionary<_,_>>)
-                         (route, handler) ->
-
-                        match routes.TryGetValue route with
+                    (fun (routes: Dictionary<_,Dictionary<_,_>>) mh ->
+                        match routes.TryGetValue mh.route with
                         | true, routeHandlers ->
-                            routeHandlers.[handler.MethodString()]
-                                <- handler.Handler()
+                            routeHandlers.[mh.method] <- mh.handler
 
                         | false, _ ->
                             let routeHandlers = Dictionary()
-                            routeHandlers.[handler.MethodString()]
-                                <- handler.Handler()
-                                
-                            routes.[route] <- routeHandlers
+                            routeHandlers.[mh.method] <- mh.handler
+
+                            routes.[mh.route] <- routeHandlers
 
                         routes
                     )
