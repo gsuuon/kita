@@ -14,7 +14,6 @@ open Kita.Core
 open System.IO
 
 type AzureNative() =
-    inherit Provider("Azure.Native")
     let defaultLocation = "eastus"
 
     let mutable provisionRequests = []
@@ -22,6 +21,11 @@ type AzureNative() =
         provisionRequests <- provision :: provisionRequests
 
     let connectionString = Waiter<string>()
+
+    interface Provider with
+        member _.Name = "Azure.Native"
+        member _.Initialize () = printfn "Initializing"
+
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 

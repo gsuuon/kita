@@ -1,8 +1,8 @@
 namespace Kita.Providers
 
-type Provider(name: string) =
-    member val name = name
-    member _.Initialize() = true
+type Provider =
+    abstract member Name : string
+    abstract member Initialize : unit -> unit
 
 type ProviderLike< ^Provider
                     when ^Provider :> Provider
