@@ -1,3 +1,0 @@
-name: ProvisionPulumi
-runtime: dotnet
-description: A minimal Azure Native F# Pulumi program
