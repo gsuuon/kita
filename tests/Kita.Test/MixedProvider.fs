@@ -3,7 +3,6 @@ module Kita.Test.MixedProvider
 open Kita.Core
 open Kita.Core.Http
 open Kita.Core.Http.Helpers
-open Kita.Core.Http.Helpers.Handlers
 
 open Kita.Resources
 open Kita.Resources.Collections

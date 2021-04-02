@@ -101,8 +101,7 @@ type Infra< ^Provider when ^Provider :> Provider and ^Provider: (new : unit -> ^
             pathedHandlers
             |> List.iter (fun mh -> print s "Handler" mh.handler)
 
-            ctx,
-            s |> addRoutes (List.map (fun x -> path, x) pathedHandlers)
+            ctx, s |> addRoutes pathedHandlers
 
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind = true)>]
     member inline _.Proc

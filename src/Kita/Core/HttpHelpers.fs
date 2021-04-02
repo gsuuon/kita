@@ -5,6 +5,7 @@ let konst x _ = x
 
 let ok body : RawResponse = { status = OK; body = body }
 
+[<AutoOpen>]
 module Handlers =
     let asHandler method handler = fun route ->
         { route = route

@@ -6,7 +6,7 @@ open Kita.Resources
 
 type Managed<'Provider> =
     { resources: CloudResource list
-      handlers: (string * MethodHandler) list
+      handlers: MethodHandler list
       names: string list
       provider: 'Provider }
 
