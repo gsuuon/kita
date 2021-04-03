@@ -7,9 +7,9 @@ type Kita() =
     static member DefaultLocation = "eastus"
 
     static member Run (app: IBlock<_>) =
-        let provider = Managed.empty() |> app.Attach
+        let attached = Managed.empty() |> app.Attach
 
-        provider.Launch
+        attached.provider.Launch
             ( Kita.DefaultGroupName
             , Kita.DefaultLocation
             )

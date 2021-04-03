@@ -102,4 +102,26 @@ let cloudMain =
 
 let program debug =
     // Composing
-    Managed.empty () |> cloudProcs debug |> cloudMain
+    Managed.empty ()
+    |> (cloudProcs debug).Attach
+    (* |> cloudMain.Attach *)
+
+(*
+I'm not sure what composition actually gets me
+I can change the api to spit out the provider and managed
+composition would have to be only with the same providers, i think
+what are some use cases for composition?
+
+letting a block have access to resources of another block
+letting a block define resources within another block
+
+which use cases does composition cover that nesting doesn't?
+
+It's much easier to just put them together
+
+But i could just similarly create a helper that does this like
+[ list of things ] |> runThemAll
+
+One use case I could see is defining a block without a given Provider type
+and letting composition infer the type
+*)

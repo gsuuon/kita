@@ -22,7 +22,13 @@ type Managed<'Provider> =
       handlers: MethodHandler list
       name: string
       provider: 'Provider
-      nested : Map<string, unit -> Provider> }
+      nested : Map<string, unit -> Managed<Provider>> }
+    static member Convert x =
+            { handlers = x.handlers
+              name = x.name
+              resources = x.resources
+              nested = x.nested
+              provider = x.provider :> Provider }
 
 module Managed =
     let inline empty<'Provider when 'Provider :> Provider> ()
@@ -33,7 +39,7 @@ module Managed =
           provider = System.Activator.CreateInstance<'Provider>()
           nested = Map.empty }
 
-type State<'a, 'b, 'c> = State of (Managed<'b> -> 'a * Managed<'c>)
+type State<'a, 'b, 'c> = State of (Managed<'a> -> 'c * Managed<'b>)
 type Resource<'T when 'T :> CloudResource> = Resource of 'T
 
 [<AutoOpen>]
@@ -63,9 +69,16 @@ module Helper =
         <| label
         <| item
 
-type IBlock<'P> =
+type IBlock<'T when 'T :> Provider> =
     abstract member Name : string
-    abstract member Attach : Managed<'P> -> Provider
+    abstract member Attach : Managed<'T> -> Managed<Provider>
+
+type NoBlock<'T when 'T :> Provider>() =
+    interface IBlock<'T> with
+        member _.Attach (x: Managed<'T>) = Managed<_>.Convert x
+        member _.Name = "No block"
+
+    static member Instance = NoBlock() :> IBlock<'T>
 
 type Infra< ^Provider when ^Provider :> Provider>
     (
@@ -111,16 +124,18 @@ type Infra< ^Provider when ^Provider :> Provider>
 
     member inline _.Delay f =
         State
-        <| fun s ->
+        <| fun state ->
 
-            let (State m) = f ()
+            let (State runner) = f ()
 
-            s |> m
+            let (x, managed) = state |> runner
+
+            x, Managed<_>.Convert managed 
 
     member inline x.Run(State runner) =
         { new IBlock< ^Provider> with
             member _.Name = x.Name
-            member this.Attach initState =
+            member this.Attach (initState: Managed< ^Provider>) =
                 print initState "run" ""
 
                 let ranState =
@@ -132,25 +147,28 @@ type Infra< ^Provider when ^Provider :> Provider>
                 let nestedProviders =
                     ranState.nested
                     |> Map.map (fun k v ->
-                        let provider = v()
-                        printfn "Got child provider: %s" provider.Name
-                        provider
+                        let managed = v()
+                        printfn "Got nested state: %s" managed.name
+                        managed
                         )
 
-                { new Provider with
-                    member _.Name = x.Name
-                    member _.Launch (a, b) =
-                        let provider : 'Provider = ranState.provider
+                { ranState with
+                    provider =
+                        { new Provider with
+                            member _.Name = x.Name
+                            member _.Launch (a, b) =
+                                let provider = ranState.provider
 
-                        printfn "Nested providers: %i" nestedProviders.Count
+                                printfn "Nested providers: %i" nestedProviders.Count
 
-                        nestedProviders
-                        |> Map.iter (fun k v ->
-                            printfn "Launching child: %s" v.Name
-                            v.Launch(a, b)
-                            )
+                                nestedProviders
+                                |> Map.iter (fun k v ->
+                                    printfn "Launching child: %s" v.name
+                                    v.provider.Launch(a, b)
+                                    )
 
-                        provider.Launch (a,b)
+                                provider.Launch (a,b)
+                        }
                 }
         }
 
@@ -209,24 +227,37 @@ type Infra< ^Provider when ^Provider :> Provider>
             State m,
             [<ProjectionParameter>] getNested
         ) =
-        // TODO revisit this, Managed<'T> should just live in a collection and not all be jammed into one record
         State
         <| fun state ->
             let (ctx, s) = m state
 
-            let childApp : IBlock< 'T> = getNested ctx
+            let innerBlock : IBlock<'T> = getNested ctx
 
-            printfn "Adding child: %s" childApp.Name
+            if innerBlock :? NoBlock<'T> then
+                printfn "Not adding child, noop"
+                ctx, s
+            else
+                printfn "Adding child: %s" innerBlock.Name
 
-            ctx,
-            { s with
-                nested =
-                    s.nested.Add
-                        ( childApp.Name
-                        , fun () ->
-                            Managed.empty<'T>()
-                            |> childApp.Attach
-                            ) }
+                let nextNested =
+                    match s.nested.TryGetValue innerBlock.Name with
+                    | true, fn -> // ??
+                        printfn "Nested block name collision: %s" innerBlock.Name
+                        s.nested.Add
+                            ( innerBlock.Name
+                            , fun () ->
+                                Managed.empty()
+                                |> innerBlock.Attach
+                                ) 
+                    | false, _ ->
+                        s.nested.Add
+                            ( innerBlock.Name
+                            , fun () ->
+                                Managed.empty()
+                                |> innerBlock.Attach
+                                ) 
+
+                ctx, { s with nested = nextNested }
 
 and Named(name: string) =
     // Gets around issues with inline accessing private data and SRTP:
@@ -241,4 +272,5 @@ module Infra =
         =
         Infra< ^Provider>(name)
 
-    let gated cond block = if cond then block else id
+    let inline gated cond (block: IBlock<'T>) =
+        if cond then block else NoBlock.Instance

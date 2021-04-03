@@ -17,9 +17,9 @@ type BProvider() =
 
 module App =
     let aApp = infra'<AProvider> "myaapp"
-    let bApp = infra'<BProvider> "mybapp"
+    let bApp = infra'<BProvider>
 
-    let bBlock = bApp {
+    let bBlock = bApp "say hello" {
         route "hello" [
             get <| fun _ -> 
                 "hi"
@@ -28,8 +28,19 @@ module App =
         ]
     }
 
-    let program = aApp {
+    let bBlock2 = bApp "say hey" {
+        route "hey" [
+            get <| fun _ -> 
+                "hey"
+                |> ok
+                |> asyncReturn
+        ]
+    }
+
+    let program sayHey = aApp {
         nest bBlock
+
+        nest (gated sayHey bBlock2)
 
         route "hi" [
             get <| fun _ -> 
@@ -39,13 +50,13 @@ module App =
         ]
     }
 
-let launch a b (p: Provider) =
-    p.Launch(a, b)
+let launch a b (m: Managed<Provider>) =
+    m.provider.Launch(a, b)
 
 [<EntryPoint>]
 let main argv =
     Managed.empty()
-    |> App.program.Attach
+    |> (App.program false).Attach
     |> launch "hi" "here"
 
     0
