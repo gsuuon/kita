@@ -69,16 +69,16 @@ module Helper =
         <| label
         <| item
 
-type IBlock<'T when 'T :> Provider> =
+type Block<'T when 'T :> Provider> =
     abstract member Name : string
     abstract member Attach : Managed<'T> -> Managed<Provider>
 
 type NoBlock<'T when 'T :> Provider>() =
-    interface IBlock<'T> with
+    interface Block<'T> with
         member _.Attach (x: Managed<'T>) = Managed<_>.Convert x
         member _.Name = "No block"
 
-    static member Instance = NoBlock() :> IBlock<'T>
+    static member Instance = NoBlock() :> Block<'T>
 
 type Infra< ^Provider when ^Provider :> Provider>
     (
@@ -133,7 +133,7 @@ type Infra< ^Provider when ^Provider :> Provider>
             x, Managed<_>.Convert managed 
 
     member inline x.Run(State runner) =
-        { new IBlock< ^Provider> with
+        { new Block< ^Provider> with
             member _.Name = x.Name
             member this.Attach (initState: Managed< ^Provider>) =
                 print initState "run" ""
@@ -231,7 +231,7 @@ type Infra< ^Provider when ^Provider :> Provider>
         <| fun state ->
             let (ctx, s) = m state
 
-            let innerBlock : IBlock<'T> = getNested ctx
+            let innerBlock : Block<'T> = getNested ctx
 
             if innerBlock :? NoBlock<'T> then
                 printfn "Not adding child, noop"
@@ -272,5 +272,5 @@ module Infra =
         =
         Infra< ^Provider>(name)
 
-    let inline gated cond (block: IBlock<'T>) =
+    let inline gated cond (block: Block<'T>) =
         if cond then block else NoBlock.Instance
