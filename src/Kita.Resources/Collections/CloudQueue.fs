@@ -3,7 +3,6 @@ namespace Kita.Resources.Collections
 open System.Collections.Generic
 
 open Kita.Core
-open Kita.Resources
 open Kita.Providers
 
 type CloudQueue<'T>() =
@@ -38,8 +37,4 @@ type CloudQueue<'T>() =
 
         printfn "Attach: Local Queue"
 
-    interface CloudResource with
-        member _.CBind() = ()
-        member _.ReportDesiredState _c = ()
-        member _.BeginActivation (provider': Provider) =
-            provider <- Some provider'
+    interface CloudResource

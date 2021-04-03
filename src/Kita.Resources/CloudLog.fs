@@ -13,7 +13,4 @@ type CloudLog() =
     member _.Attach(cfg: Azure) = printfn "Attach: Azure Log"
     member _.Attach(cfg: Local) = printfn "Attach: Local Log"
 
-    interface CloudResource with
-        member _.CBind() = ()
-        member _.ReportDesiredState _c = ()
-        member _.BeginActivation _c = ()
+    interface CloudResource

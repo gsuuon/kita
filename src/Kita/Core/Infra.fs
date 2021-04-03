@@ -15,7 +15,7 @@ module Ops =
         =
         (^R: (member Attach : ^C -> unit) (resource, config))
 
-type CloudResource = class end
+type CloudResource = interface end
 
 type Managed<'Provider> =
     { resources: CloudResource list

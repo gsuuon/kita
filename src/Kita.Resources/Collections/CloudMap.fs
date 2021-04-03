@@ -1,7 +1,6 @@
 namespace Kita.Resources.Collections
 
 open Kita.Core
-open Kita.Resources
 open Kita.Providers
 
 type CloudMap<'K, 'V>() =
@@ -13,12 +12,7 @@ type CloudMap<'K, 'V>() =
 
     member _.TryFind key =
         async { return Unchecked.defaultof<'V> }
-
     member _.Set(key, item) = ()
-
-    interface CloudResource with
-        member _.CBind() = ()
-        member _.ReportDesiredState _c = ()
-        member _.BeginActivation _c = ()
-
     member _.Attach(az: Azure) = printfn "Attach: Azure Map"
+
+    interface CloudResource
