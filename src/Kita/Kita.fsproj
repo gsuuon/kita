@@ -4,13 +4,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Providers/Provider.fs" />
-    <Compile Include="Resources/CloudResource.fs" />
     <Compile Include="Core/Http.fs" />
     <Compile Include="Core/HttpHelpers.fs" />
-    <Compile Include="Core/Infra/Managed.fs" />
-    <Compile Include="Core/Infra/State.fs" />
-    <Compile Include="Core/Infra/Infra.fs" />
+    <Compile Include="Core/Infra.fs" />
+    <Compile Include="Run.fs" />
     <Compile Include="Operations.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
