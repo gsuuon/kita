@@ -4,7 +4,7 @@ open Kita.Core.Http
 
 type Provider =
     abstract member Name : string
-    abstract member Launch : string * string -> unit
+    abstract member Launch : string * string * Block<_> -> unit
 
 module Ops =
     let inline attach< ^C, ^R when ^R: (member Attach : ^C -> unit) and ^C :> Provider>
@@ -156,7 +156,22 @@ type Infra< ^Provider when ^Provider :> Provider>
                     provider =
                         { new Provider with
                             member _.Name = x.Name
-                            member _.Launch (a, b) =
+                            member _.Launch (a, b, block) =
+                                // NOTE I'm calling child launches with this block, not passed in block
+                                // How do I avoid having to pass in a block?
+
+(*
+Right now I'm taking managed (provider + state) and passing that into
+block.attach
+
+and then i get out a managed with a new provider
+where i call .launch on the provider, passing in appname, location string, and the block again
+i dont think i can just use the enclosing block here
+the point of passing in the thing is to be able to get a reference to the variable the block is bound to
+not sure what i would get if i just passed in the enclosing block
+though this is inlined, maybe it works?
+
+*)
                                 let provider = ranState.provider
 
                                 printfn "Nested providers: %i" nestedProviders.Count
@@ -164,10 +179,10 @@ type Infra< ^Provider when ^Provider :> Provider>
                                 nestedProviders
                                 |> Map.iter (fun k v ->
                                     printfn "Launching child: %s" v.name
-                                    v.provider.Launch(a, b)
+                                    v.provider.Launch(a, b, this)
                                     )
 
-                                provider.Launch (a,b)
+                                provider.Launch (a,b, this)
                         }
                 }
         }

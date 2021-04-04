@@ -22,10 +22,6 @@ type AzureNative() =
 
     let connectionString = Waiter<string>()
 
-    interface Provider with
-        member _.Name = "Azure.Native"
-        member _.Initialize () = printfn "Initializing"
-
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 
@@ -105,7 +101,7 @@ type AzureNative() =
         (
             appName,
             location,
-            app: Managed<AzureNative> -> Managed<AzureNative>
+            app
         ) =
         AzureNative.Run(appName, location, Managed.empty(), app)
 
@@ -114,7 +110,7 @@ type AzureNative() =
             appName,
             location,
             start,
-            app: Managed<AzureNative> -> Managed<AzureNative>
+            app: Block<_>
         ) = task {
         // FIXME how do I hide the type of location?
         // typed location makes it hard to have 1 line change to switch
@@ -137,7 +133,7 @@ type AzureNative() =
         // Not sure how I would use this with zipdeploy?
         // Could be useful for local provider
 
-        let managed = start |> app
+        let managed = start |> app.Attach
         let provider = managed.provider
 
         let! (conString, rgName, saName) = provider.ProvisionGroup(appName, location)
@@ -166,3 +162,41 @@ type AzureNative() =
 
     member _.RequestQueue (qName) =
         requestProvision <| Storage.createQueue qName
+
+    interface Provider with
+        member _.Name = "Azure.Native"
+        member this.Launch (appName, location, block) =
+            let work = task {
+                (* let managed = block.Attach (Managed.empty()) *)
+                    // Can't call that here, it would be an infinite loop
+                    // shouldn't need to, i've already called attach by this point
+                    // or is this a different instance?
+                    // too tired for this
+                    // sleep time
+                    // TODO-next
+                let! (conString, rgName, saName) = this.ProvisionGroup(appName, location)
+                let provisionWork = this.Provision(appName, conString, rgName, saName)
+                let zipProjectWork = this.Generate(block, conString)
+                    // TODO contextualize the logs of each process
+                    // logging channels
+
+                let! (conString, functionApp) = provisionWork
+                let! zipProject = zipProjectWork
+                printfn "Generated zip project"
+                    // FIXME zip can fail if reference dlls are in use? (eg by an lsp server)
+                    // but we're only trying to copy
+                    // is there some way around this?
+                let! deployment = this.Deploy(conString, functionApp, zipProject)
+                do! functionApp.SyncTriggersAsync()
+
+                this.Attach conString
+
+                printfn "Deployed app -- https://%s" functionApp.DefaultHostName
+                let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "proxyKey", null)
+                printfn "Key -- %s | %s" funKey.Name funKey.Value
+
+                return managed
+            }
+
+            work.Wait()
+

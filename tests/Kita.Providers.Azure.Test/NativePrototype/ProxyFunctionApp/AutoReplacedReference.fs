@@ -2,4 +2,4 @@ module ProxyApp.AutoReplacedReference
 
 open Kita.Core
 
-let app = id
+let app = NoBlock<Provider>.Instance

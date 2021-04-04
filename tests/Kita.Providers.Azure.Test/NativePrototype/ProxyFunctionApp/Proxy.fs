@@ -23,10 +23,13 @@ module Proxy =
     let app =
         let routes =
             Managed.empty()
-            |> ProxyApp.AutoReplacedReference.app
+            |> ProxyApp.AutoReplacedReference.app.Attach
             |> fun managed ->
-                managed.provider.Attach connectionString; managed
+                managed.provider.Attach connectionString
+                // TODO I feel like this project should depend on AzureNative, and I can make the type explicit here
                     // This depends on the replaced Kita_AssemblyReference
+
+                managed
             |> fun managed ->
                 managed.handlers
                 |> Seq.fold

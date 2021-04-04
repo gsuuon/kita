@@ -135,7 +135,7 @@ module App =
 
     let local = infra'<Local>
 
-    let localApp =
+    let localBlock =
         local "testApp" {
             route "hello" [
                 ok "Hows it going" |> asyncReturn |> konst |> get
@@ -144,7 +144,8 @@ module App =
                 ok "Hi there" |> asyncReturn |> konst |> get
             ]
         }
-        <| Managed.empty()
+
+    let localApp = localBlock.Attach (Managed.empty())
 
 open Kita.Core.Managed
 

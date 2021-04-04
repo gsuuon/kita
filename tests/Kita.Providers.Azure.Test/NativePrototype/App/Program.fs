@@ -36,6 +36,8 @@ module App =
     }
 
     let deploy () =
+        let managed = kitaRun app
+
         AzureNative.Run("myaznativeapp2", "eastus", app)
             // TODO this should be the resourcegroup name
 

@@ -57,10 +57,10 @@ module Zipper =
         |> Array.map (fun line -> if find line then replace line else line)
         |> String.concat "\r"
         
-    let replaceAppReference app (fileText: string) =
+    let replaceAppReference source (fileText: string) =
         let targetAssign = "let app = "
 
-        let accessor = Reflect.getStaticAccessPath app
+        let accessor = Reflect.getStaticAccessPath source
         printfn "Replacing accessor with: %s" accessor
 
         findAndReplaceLine
@@ -73,7 +73,7 @@ module Zipper =
             res
         <| fileText
 
-    let replaceProjectReference proxyAppPath app (fileText: string) =
+    let replaceProjectReference proxyAppPath (fileText: string) =
         // FIXME we're assuming we've executed via `dotnet run` from project root directory
         // The goal here is to add all the references required for app to the proxy project
         // the easiest way I see is to just add a project reference to the current executing project
@@ -208,10 +208,11 @@ module Builder =
 
 let rec generateFunctionsAppZip
     (proxyAppPath: string)
-    (app: Managed<_> -> Managed<_>)
+    referenceReplaceSource
         // We don't actually care what provider is here I think
     conString
     = task {
+
     try
         let proxyProjPath = Path.Join(".kita","Proxy")
         printfn "Generating from template at %s" proxyProjPath
@@ -220,9 +221,9 @@ let rec generateFunctionsAppZip
         <| proxyAppPath
         <| fun relativePath fileText ->
             if relativePath = "AutoReplacedReference.fs" then
-                replaceAppReference app fileText
+                replaceAppReference referenceReplaceSource fileText
             else if relativePath.EndsWith ".fsproj" then
-                replaceProjectReference proxyAppPath app fileText
+                replaceProjectReference proxyAppPath fileText
             // TODO generate app-namespaced connection string env variable
             else if relativePath.EndsWith "local.settings.json" then
                 replaceLocalSettings conString fileText
@@ -262,10 +263,11 @@ let rec generateFunctionsAppZip
 
         match readKey 10000 with
         | Some 'r' ->
-            return! generateFunctionsAppZip proxyAppPath app conString
+            return! generateFunctionsAppZip proxyAppPath referenceReplaceSource conString
         | None
         | Some 'a'
         | Some _ ->
             printfn "Aborted!"
             return raise e
-}
+
+    }
