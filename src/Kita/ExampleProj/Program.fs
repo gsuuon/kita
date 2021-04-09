@@ -2,18 +2,28 @@ open Kita.Core
 open Kita.Core.Infra
 open Kita.Core.Http
 open Kita.Core.Http.Helpers
+open Kita.Compile
+
+let mutable root = Unchecked.defaultof<AttachedBlock>
+
+let launch prov (name, loc, block) =
+    let path = 
+        try
+            Reflect.getStaticAccessPath block
+        with e ->
+            sprintf "Couldn't get path: %A" e
+
+    printfn "Launched %s: %s" prov path
 
 type AProvider() =
     interface Provider with
-        member _.Name = "AProvider"
-        member _.Launch(name, loc) =
-            printfn "Launched A"
+        member _.Launch(name, loc, block) =
+            launch "A" (name, loc, block)
 
 type BProvider() =
     interface Provider with
-        member _.Name = "BProvider"
-        member _.Launch(name, loc) =
-            printfn "Launched B"
+        member _.Launch(name, loc, block) =
+            launch "B" (name, loc, block)
 
 module App =
     let aApp = infra'<AProvider> "myaapp"
@@ -37,7 +47,7 @@ module App =
         ]
     }
 
-    let program sayHey = aApp {
+    let root sayHey = aApp {
         nest bBlock
 
         nest (gated sayHey bBlock2)
@@ -50,13 +60,11 @@ module App =
         ]
     }
 
-let launch a b (m: Managed<Provider>) =
-    m.provider.Launch(a, b)
+let program = App.root true
 
 [<EntryPoint>]
 let main argv =
-    Managed.empty()
-    |> (App.program false).Attach
-    |> launch "hi" "here"
+    root <- program.Attach(Managed.empty())
+    root.launch("my app", "earth")
 
     0

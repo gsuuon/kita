@@ -3,8 +3,55 @@ namespace rec Kita.Core
 open Kita.Core.Http
 
 type Provider =
+    abstract member Launch : string * string * AttachedBlock -> unit
+    
+type AttachedBlock =
+    { name : string
+      state : Managed
+      nested : Map<string, AttachedBlock> }
+
+type Block<'T when 'T :> Provider> =
     abstract member Name : string
-    abstract member Launch : string * string * Block<_> -> unit
+    abstract member Attach : Managed -> AttachedBlock
+    abstract member Attach : Managed * 'T -> AttachedBlock
+
+module AttachedBlock =
+    let getNestedByPath pathsAll (root: AttachedBlock) =
+        let rec getNested pathsLeft (current: AttachedBlock) =
+            match pathsLeft with
+            | [] -> current
+            | head::rest ->
+                match current.nested.TryGetValue head with
+                | true, attachedBlock ->
+                    getNested rest attachedBlock
+                | false, _ ->
+                    let pathsTraveled =
+                        pathsAll
+                        |> List.take (pathsAll.Length - pathsLeft.Length)
+
+                    failwithf
+                        "No block found\nLost at: %s\nLooking for: %s"
+                            (pathsTraveled |> String.concat ".")
+                            (pathsAll |> String.concat ".")
+
+        getNested pathsAll root
+
+type Managed =
+    { resources: CloudResource list
+      handlers: MethodHandler list
+      nested : Map<string, Block<Provider>>
+      path : string list }
+
+type State<'a, 'b, 'c> = State of (Managed -> 'c * Managed)
+
+module Managed =
+    let empty () =
+        { resources = []
+          handlers = []
+          nested = Map.empty
+          path = List.empty }
+
+type Resource<'T when 'T :> CloudResource> = Resource of 'T
 
 module Ops =
     let inline attach< ^C, ^R when ^R: (member Attach : ^C -> unit) and ^C :> Provider>
@@ -16,31 +63,6 @@ module Ops =
         (^R: (member Attach : ^C -> unit) (resource, config))
 
 type CloudResource = interface end
-
-type Managed<'Provider> =
-    { resources: CloudResource list
-      handlers: MethodHandler list
-      name: string
-      provider: 'Provider
-      nested : Map<string, unit -> Managed<Provider>> }
-    static member Convert x =
-            { handlers = x.handlers
-              name = x.name
-              resources = x.resources
-              nested = x.nested
-              provider = x.provider :> Provider }
-
-module Managed =
-    let inline empty<'Provider when 'Provider :> Provider> ()
-        =
-        { resources = []
-          handlers = []
-          name = ""
-          provider = System.Activator.CreateInstance<'Provider>()
-          nested = Map.empty }
-
-type State<'a, 'b, 'c> = State of (Managed<'a> -> 'c * Managed<'b>)
-type Resource<'T when 'T :> CloudResource> = Resource of 'T
 
 [<AutoOpen>]
 module State =
@@ -54,28 +76,27 @@ module State =
         { state with
               handlers = state.handlers @ pathHandlers }
 
-    let setName name (managed: Managed<_>) =
-        { managed with name = name }
-
     let ret x = State(fun s -> x, s)
 
 [<AutoOpen>]
 module Helper =
-    let inline print (m: Managed<'a>) label item =
+    let inline print (m: Managed) label item =
         printfn "%s| %s: %A"
-        <| match m.name with
-           | "" -> "anon"
-           | x -> x
+        <| (m.path |> String.concat ".")
         <| label
         <| item
 
-type Block<'T when 'T :> Provider> =
-    abstract member Name : string
-    abstract member Attach : Managed<'T> -> Managed<Provider>
-
 type NoBlock<'T when 'T :> Provider>() =
     interface Block<'T> with
-        member _.Attach (x: Managed<'T>) = Managed<_>.Convert x
+        member _.Attach (_, _) =
+            { launch = fun (_, _) -> ()
+              name = "No name"
+              state = Managed.empty()
+              nested = Map.empty }
+
+        member b.Attach (x: Managed) =
+            (b :> Block<'T>).Attach(x, Unchecked.defaultof<_>())
+
         member _.Name = "No block"
 
     static member Instance = NoBlock() :> Block<'T>
@@ -86,18 +107,80 @@ type Infra< ^Provider when ^Provider :> Provider>
     ) =
     inherit Named(name)
 
+    member inline x.Run(State runner) =
+        { new Block< ^Provider> with
+            member _.Name = x.Name
+            member block.Attach (initState) =
+                block.Attach(initState, System.Activator.CreateInstance< ^Provider>())
+                    // FIXME will runtime crash if ^Provider is interface type or no null constructor
+                    // all this really saves me is the `when ^Provider : new` constraint
+                    // but srtp is annoying and i need to copy/paste that constraint in any
+                    // other type where i want to use ^Provider TODO add the new constraint
+                
+            member block.Attach (initState: Managed, provider: ^Provider) =
+                print initState "run" ""
+
+                let path = initState.path @ [block.Name]
+
+                let ranState =
+                    { initState with path = path }
+                        // Add name to state path
+                    |> runner
+                    |> snd
+                
+                let nestedAttached =
+                    ranState.nested
+                    |> Map.map (fun k v ->
+                        printfn "Attaching child: %s" k
+
+                        { Managed.empty() with path = path }
+                        |> v.Attach
+
+                        )
+
+                let attachedBlock =
+                    {
+                        name = block.Name
+                        state = ranState
+                        nested = nestedAttached
+                    }
+
+                // TODO I don't actually need launch here
+                // it just uses ranState to do stuff
+                let launch (provider: #Provider) =
+                    fun (name, location) ->
+                        printfn "Nested providers: %i"
+                            ranState.nested.Count
+
+                        printfn "FIXME does the nested block actually work?"
+
+                        nestedAttached
+                        |> Map.iter (fun _k v ->
+                            v.launch(name, location)
+                            )
+
+                        provider.Launch(name, location, _temp)
+
+                attachedBlock
+        }
+
     member inline _.Bind
         (
             resource: ^R when ^R: (member Attach : ^Provider -> unit),
             f
         ) =
         State
-        <| fun (s: Managed< ^Provider >) ->
+        <| fun (s: Managed) ->
 
             print s "Resource" resource
 
             let (State m) = f resource
-            Ops.attach (resource, s.provider)
+
+            // TODO Call attach
+            printfn "TODO Actually attach resource to provider"
+
+            (* Ops.attach (resource, s.provider) *)
+            (* let doAttach = fun (provider: ^Provider) -> Ops.attach (resource, provider) *)
 
             s |> addResource resource |> m
 
@@ -117,7 +200,7 @@ type Infra< ^Provider when ^Provider :> Provider>
         <| fun s ->
             print s "zero" ""
 
-            (), Managed.empty< ^Provider> ()
+            (), Managed.empty ()
 
     member inline _.Return x = ret x
     member inline _.Yield x = ret x
@@ -128,64 +211,7 @@ type Infra< ^Provider when ^Provider :> Provider>
 
             let (State runner) = f ()
 
-            let (x, managed) = state |> runner
-
-            x, Managed<_>.Convert managed 
-
-    member inline x.Run(State runner) =
-        { new Block< ^Provider> with
-            member _.Name = x.Name
-            member this.Attach (initState: Managed< ^Provider>) =
-                print initState "run" ""
-
-                let ranState =
-                    initState
-                    |> setName x.Name
-                    |> runner
-                    |> snd
-
-                let nestedProviders =
-                    ranState.nested
-                    |> Map.map (fun k v ->
-                        let managed = v()
-                        printfn "Got nested state: %s" managed.name
-                        managed
-                        )
-
-                { ranState with
-                    provider =
-                        { new Provider with
-                            member _.Name = x.Name
-                            member _.Launch (a, b, block) =
-                                // NOTE I'm calling child launches with this block, not passed in block
-                                // How do I avoid having to pass in a block?
-
-(*
-Right now I'm taking managed (provider + state) and passing that into
-block.attach
-
-and then i get out a managed with a new provider
-where i call .launch on the provider, passing in appname, location string, and the block again
-i dont think i can just use the enclosing block here
-the point of passing in the thing is to be able to get a reference to the variable the block is bound to
-not sure what i would get if i just passed in the enclosing block
-though this is inlined, maybe it works?
-
-*)
-                                let provider = ranState.provider
-
-                                printfn "Nested providers: %i" nestedProviders.Count
-
-                                nestedProviders
-                                |> Map.iter (fun k v ->
-                                    printfn "Launching child: %s" v.name
-                                    v.provider.Launch(a, b, this)
-                                    )
-
-                                provider.Launch (a,b, this)
-                        }
-                }
-        }
+            state |> runner
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind = true)>]
     member inline _.Route
@@ -255,22 +281,23 @@ though this is inlined, maybe it works?
                 printfn "Adding child: %s" innerBlock.Name
 
                 let nextNested =
+                    let nestedBlock =
+                        { new Block<Provider> with
+                            member _.Name = innerBlock.Name
+                            member _.Attach (x, _) =
+                                // NOTE nested blocks always create a new instance of the provider
+                                innerBlock.Attach (x,System.Activator.CreateInstance<_>())
+                            member b.Attach (x) =
+                                b.Attach(x, Unchecked.defaultof<_>)
+                        }
+
                     match s.nested.TryGetValue innerBlock.Name with
-                    | true, fn -> // ??
+                    | true, _block -> // ??
                         printfn "Nested block name collision: %s" innerBlock.Name
-                        s.nested.Add
-                            ( innerBlock.Name
-                            , fun () ->
-                                Managed.empty()
-                                |> innerBlock.Attach
-                                ) 
+                            // TODO what to do in this case?
+                        s.nested.Add (innerBlock.Name, nestedBlock) 
                     | false, _ ->
-                        s.nested.Add
-                            ( innerBlock.Name
-                            , fun () ->
-                                Managed.empty()
-                                |> innerBlock.Attach
-                                ) 
+                        s.nested.Add (innerBlock.Name, nestedBlock) 
 
                 ctx, { s with nested = nextNested }
 
