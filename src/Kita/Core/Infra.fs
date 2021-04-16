@@ -7,10 +7,6 @@ type Provider =
         name: string * location: string * attachedBlockPath: string list
             -> unit
 
-type AttachedBlockAddress =
-    { root : AttachedBlock
-      path : string list }
-
 type AttachedBlock =
     { name : string
       state : Managed
@@ -22,7 +18,7 @@ type Block<'T when 'T :> Provider> =
     abstract member Attach : Managed -> AttachedBlock
 
 module AttachedBlock =
-    let getNestedByPath pathsAll (root: AttachedBlock) =
+    let getNestedByPath (root: AttachedBlock) pathsAll =
         let rec getNested pathsLeft (current: AttachedBlock) =
             match pathsLeft with
             | [] -> current
@@ -302,4 +298,19 @@ module Infra =
     let inline gated cond (block: Block<'T>) =
         if cond then block else NoBlock.Instance
 
+    let launch
+        (appName: string)
+        (location: string)
+        (block: AttachedBlock)
+        =
+        block.launch appName location
 
+    let launchNested
+        (appName: string)
+        (location: string)
+        (rootBlock: AttachedBlock)
+        nestedPath
+        =
+        nestedPath
+        |> AttachedBlock.getNestedByPath rootBlock
+        |> launch appName location
