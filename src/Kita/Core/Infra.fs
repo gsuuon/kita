@@ -276,7 +276,7 @@ type Infra< ^Provider when ^Provider :> Provider>
                         { new Block<Provider> with
                             // This is cast of Block<#Provider> to Block<Provider>
                             member _.Name = innerBlock.Name
-                            member b.Attach (x) = b.Attach(x)
+                            member b.Attach (x) = innerBlock.Attach(x)
                         }
 
                     match s.nested.TryGetValue innerBlock.Name with
