@@ -290,10 +290,11 @@ type Infra< ^Provider when ^Provider :> Provider>
                 ctx, { s with nested = nextNested }
 
 module Infra =
-    let inline infra'< ^Provider when ^Provider :> Provider>
+    let inline infra< ^Provider when ^Provider :> Provider>
+        provider
         name
         =
-        Infra< ^Provider>(name)
+        Infra< ^Provider>(name, provider)
 
     let inline gated cond (block: Block<'T>) =
         if cond then block else NoBlock.Instance
@@ -308,8 +309,8 @@ module Infra =
     let launchNested
         (appName: string)
         (location: string)
-        (rootBlock: AttachedBlock)
         nestedPath
+        (rootBlock: AttachedBlock)
         =
         nestedPath
         |> AttachedBlock.getNestedByPath rootBlock
