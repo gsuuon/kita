@@ -3,17 +3,23 @@ namespace rec Kita.Core
 open Kita.Core.Http
 
 type Provider =
-    abstract member Launch : string * string * AttachedBlock -> unit
-    
+    abstract member Launch :
+        name: string * location: string * attachedBlockPath: string list
+            -> unit
+
+type AttachedBlockAddress =
+    { root : AttachedBlock
+      path : string list }
+
 type AttachedBlock =
     { name : string
       state : Managed
+      launch : string -> string -> unit
       nested : Map<string, AttachedBlock> }
 
 type Block<'T when 'T :> Provider> =
     abstract member Name : string
     abstract member Attach : Managed -> AttachedBlock
-    abstract member Attach : Managed * 'T -> AttachedBlock
 
 module AttachedBlock =
     let getNestedByPath pathsAll (root: AttachedBlock) =
@@ -88,38 +94,38 @@ module Helper =
 
 type NoBlock<'T when 'T :> Provider>() =
     interface Block<'T> with
-        member _.Attach (_, _) =
-            { launch = fun (_, _) -> ()
+        member _.Attach (_) =
+            { launch = fun _ _ -> ()
               name = "No name"
               state = Managed.empty()
-              nested = Map.empty }
-
-        member b.Attach (x: Managed) =
-            (b :> Block<'T>).Attach(x, Unchecked.defaultof<_>())
+              nested = Map.empty
+              }
 
         member _.Name = "No block"
 
     static member Instance = NoBlock() :> Block<'T>
 
+type PublicInfra<'P>(name: string, provider: 'P) =
+    // Gets around issues with inline accessing private data and SRTP:
+    // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
+    // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
+    member _.Name = name
+    member _.Provider = provider
+
 type Infra< ^Provider when ^Provider :> Provider>
     (
-        name: string
+        name: string,
+        provider: ^Provider
     ) =
-    inherit Named(name)
+    inherit PublicInfra<'Provider>(name, provider)
 
-    member inline x.Run(State runner) =
+    member inline this.Run(State runner) =
         { new Block< ^Provider> with
-            member _.Name = x.Name
-            member block.Attach (initState) =
-                block.Attach(initState, System.Activator.CreateInstance< ^Provider>())
-                    // FIXME will runtime crash if ^Provider is interface type or no null constructor
-                    // all this really saves me is the `when ^Provider : new` constraint
-                    // but srtp is annoying and i need to copy/paste that constraint in any
-                    // other type where i want to use ^Provider TODO add the new constraint
-                
-            member block.Attach (initState: Managed, provider: ^Provider) =
+            member _.Name = this.Name
+            member block.Attach (initState: Managed) =
                 print initState "run" ""
 
+                // if initstate is [] then this is the root
                 let path = initState.path @ [block.Name]
 
                 let ranState =
@@ -138,17 +144,11 @@ type Infra< ^Provider when ^Provider :> Provider>
 
                         )
 
-                let attachedBlock =
-                    {
-                        name = block.Name
-                        state = ranState
-                        nested = nestedAttached
-                    }
-
-                // TODO I don't actually need launch here
-                // it just uses ranState to do stuff
-                let launch (provider: #Provider) =
-                    fun (name, location) ->
+                {
+                    name = block.Name
+                    state = ranState
+                    nested = nestedAttached
+                    launch = fun name location ->
                         printfn "Nested providers: %i"
                             ranState.nested.Count
 
@@ -156,15 +156,14 @@ type Infra< ^Provider when ^Provider :> Provider>
 
                         nestedAttached
                         |> Map.iter (fun _k v ->
-                            v.launch(name, location)
+                            v.launch name location
                             )
 
-                        provider.Launch(name, location, _temp)
-
-                attachedBlock
+                        this.Provider.Launch(name, location, ranState.path)
+                }
         }
 
-    member inline _.Bind
+    member inline this.Bind
         (
             resource: ^R when ^R: (member Attach : ^Provider -> unit),
             f
@@ -176,11 +175,7 @@ type Infra< ^Provider when ^Provider :> Provider>
 
             let (State m) = f resource
 
-            // TODO Call attach
-            printfn "TODO Actually attach resource to provider"
-
-            (* Ops.attach (resource, s.provider) *)
-            (* let doAttach = fun (provider: ^Provider) -> Ops.attach (resource, provider) *)
+            Ops.attach (resource, this.Provider)
 
             s |> addResource resource |> m
 
@@ -283,12 +278,9 @@ type Infra< ^Provider when ^Provider :> Provider>
                 let nextNested =
                     let nestedBlock =
                         { new Block<Provider> with
+                            // This is cast of Block<#Provider> to Block<Provider>
                             member _.Name = innerBlock.Name
-                            member _.Attach (x, _) =
-                                // NOTE nested blocks always create a new instance of the provider
-                                innerBlock.Attach (x,System.Activator.CreateInstance<_>())
-                            member b.Attach (x) =
-                                b.Attach(x, Unchecked.defaultof<_>)
+                            member b.Attach (x) = b.Attach(x)
                         }
 
                     match s.nested.TryGetValue innerBlock.Name with
@@ -301,13 +293,6 @@ type Infra< ^Provider when ^Provider :> Provider>
 
                 ctx, { s with nested = nextNested }
 
-and Named(name: string) =
-    // Gets around issues with inline accessing private data and SRTP:
-    // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
-    // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
-    member val Name = name
-
-
 module Infra =
     let inline infra'< ^Provider when ^Provider :> Provider>
         name
@@ -316,3 +301,5 @@ module Infra =
 
     let inline gated cond (block: Block<'T>) =
         if cond then block else NoBlock.Instance
+
+
