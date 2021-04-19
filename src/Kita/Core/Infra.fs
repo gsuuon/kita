@@ -17,6 +17,10 @@ type Block<'T when 'T :> Provider> =
     abstract member Name : string
     abstract member Attach : Managed -> AttachedBlock
 
+type RootBlockAttribute(name: string) =
+    inherit System.Attribute()
+    new () = RootBlockAttribute("")
+
 module AttachedBlock =
     let getNestedByPath (root: AttachedBlock) pathsAll =
         let rec getNested pathsLeft (current: AttachedBlock) =
@@ -43,15 +47,13 @@ type Managed =
       handlers: MethodHandler list
       nested : Map<string, Block<Provider>>
       path : string list }
-
-type State<'a, 'b, 'c> = State of (Managed -> 'c * Managed)
-
-module Managed =
-    let empty () =
+      static member Empty =
         { resources = []
           handlers = []
           nested = Map.empty
           path = List.empty }
+
+type State<'a, 'b, 'c> = State of (Managed -> 'c * Managed)
 
 type Resource<'T when 'T :> CloudResource> = Resource of 'T
 
@@ -93,7 +95,7 @@ type NoBlock<'T when 'T :> Provider>() =
         member _.Attach (_) =
             { launch = fun _ _ -> ()
               name = "No name"
-              state = Managed.empty()
+              state = Managed.Empty
               nested = Map.empty
               }
 
@@ -135,7 +137,7 @@ type Infra< ^Provider when ^Provider :> Provider>
                     |> Map.map (fun k v ->
                         printfn "Attaching child: %s" k
 
-                        { Managed.empty() with path = path }
+                        { Managed.Empty with path = path }
                         |> v.Attach
 
                         )
@@ -191,7 +193,7 @@ type Infra< ^Provider when ^Provider :> Provider>
         <| fun s ->
             print s "zero" ""
 
-            (), Managed.empty ()
+            (), Managed.Empty
 
     member inline _.Return x = ret x
     member inline _.Yield x = ret x

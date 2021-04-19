@@ -25,10 +25,10 @@ type AzureNative() =
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 
-    member _.Generate(app, conString) =
+    member _.Generate(nestPath, conString) =
         GenerateProject.generateFunctionsAppZip
             (Path.Join(__SOURCE_DIRECTORY__, "ProxyFunctionApp"))
-            app
+            nestPath
             conString
 
     member _.Deploy (conString, functionApp, generatedZip: byte[]) = task {
@@ -97,21 +97,10 @@ type AzureNative() =
 
         }
         
-    static member Run
-        (
-            appName,
-            location,
-            app
-        ) =
-        AzureNative.Run(appName, location, Managed.empty(), app)
+    member _.RequestQueue (qName) =
+        requestProvision <| Storage.createQueue qName
 
-    static member Run
-        (
-            appName,
-            location,
-            start,
-            app: Block<_>
-        ) = task {
+    interface Provider with
         // FIXME how do I hide the type of location?
         // typed location makes it hard to have 1 line change to switch
         // vendor platform
@@ -133,50 +122,11 @@ type AzureNative() =
         // Not sure how I would use this with zipdeploy?
         // Could be useful for local provider
 
-        let managed = start |> app.Attach
-        let provider = managed.provider
-
-        let! (conString, rgName, saName) = provider.ProvisionGroup(appName, location)
-        let provisionWork = provider.Provision(appName, conString, rgName, saName)
-        let zipProjectWork = provider.Generate(app, conString)
-            // TODO contextualize the logs of each process
-            // logging channels
-
-        let! (conString, functionApp) = provisionWork
-        let! zipProject = zipProjectWork
-        printfn "Generated zip project"
-            // FIXME zip can fail if reference dlls are in use? (eg by an lsp server)
-            // but we're only trying to copy
-            // is there some way around this?
-        let! deployment = provider.Deploy(conString, functionApp, zipProject)
-        do! functionApp.SyncTriggersAsync()
-
-        provider.Attach conString
-
-        printfn "Deployed app -- https://%s" functionApp.DefaultHostName
-        let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "proxyKey", null)
-        printfn "Key -- %s | %s" funKey.Name funKey.Value
-
-        return managed
-    }
-
-    member _.RequestQueue (qName) =
-        requestProvision <| Storage.createQueue qName
-
-    interface Provider with
-        member _.Name = "Azure.Native"
-        member this.Launch (appName, location, block) =
+        member this.Launch (appName, location, nestPath) =
             let work = task {
-                (* let managed = block.Attach (Managed.empty()) *)
-                    // Can't call that here, it would be an infinite loop
-                    // shouldn't need to, i've already called attach by this point
-                    // or is this a different instance?
-                    // too tired for this
-                    // sleep time
-                    // TODO-next
                 let! (conString, rgName, saName) = this.ProvisionGroup(appName, location)
                 let provisionWork = this.Provision(appName, conString, rgName, saName)
-                let zipProjectWork = this.Generate(block, conString)
+                let zipProjectWork = this.Generate(nestPath, conString)
                     // TODO contextualize the logs of each process
                     // logging channels
 
@@ -199,4 +149,3 @@ type AzureNative() =
             }
 
             work.Wait()
-

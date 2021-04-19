@@ -8,8 +8,9 @@ open Kita.Core.Http
 open Kita.Core.Http.Helpers
 
 module App = 
-    let azure = infra'<AzureNative>
+    let azure = AzureNative() |> infra
 
+    [<RootBlock()>]
     let app = azure "myaznativeapp" {
         // TODO name is thrown away
         // This should be the app name
@@ -36,16 +37,15 @@ module App =
     }
 
     let deploy () =
-        let managed = kitaRun app
-
-        AzureNative.Run("myaznativeapp2", "eastus", app)
-            // TODO this should be the resourcegroup name
+        Managed.Empty
+        |> app.Attach
+        |> launch "myaznativeapp" "eastus"
 
 [<EntryPoint>]
 let main argv =
     let managed =
         printfn "Deploying"
 
-        App.deploy().Wait()
+        App.deploy()
 
     0 // return an integer exit code

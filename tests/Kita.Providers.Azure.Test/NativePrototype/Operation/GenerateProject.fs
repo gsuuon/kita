@@ -57,10 +57,18 @@ module Zipper =
         |> Array.map (fun line -> if find line then replace line else line)
         |> String.concat "\r"
         
-    let replaceAppReference source (fileText: string) =
+    let replaceAppReference nestedPath source (fileText: string) =
         let targetAssign = "let app = "
 
         let accessor = Reflect.getStaticAccessPath source
+        let rootBlockAccessor = "" // TODO
+            // find the member with the rootblockattribute
+        let nestedPathAsString = nestedPath |> String.concat ", "
+        let attachedBlockAccessor =
+            sprintf "AttachedBlock.getNestedPath (%s) [%s]"
+                        rootBlockAccessor
+                        nestedPathAsString
+
         printfn "Replacing accessor with: %s" accessor
 
         findAndReplaceLine
@@ -209,7 +217,7 @@ module Builder =
 let rec generateFunctionsAppZip
     (proxyAppPath: string)
     referenceReplaceSource
-        // We don't actually care what provider is here I think
+    nestPath
     conString
     = task {
 

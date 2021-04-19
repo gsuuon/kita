@@ -7,6 +7,7 @@ module Proxy =
     open System.Net
     open System.Text.Json
     open System.Collections.Generic
+
     open Microsoft.Azure.Functions.Worker
     open Microsoft.Azure.Functions.Worker.Http
     open Microsoft.Extensions.Logging
@@ -25,7 +26,7 @@ module Proxy =
             Managed.empty()
             |> ProxyApp.AutoReplacedReference.app.Attach
             |> fun managed ->
-                managed.provider.Attach connectionString
+                managed.Attach connectionString
                 // TODO I feel like this project should depend on AzureNative, and I can make the type explicit here
                     // This depends on the replaced Kita_AssemblyReference
 

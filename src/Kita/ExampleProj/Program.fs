@@ -8,6 +8,7 @@ let mutable root = Unchecked.defaultof<AttachedBlock>
 
 let sayLaunched name _ = printfn "Launched %s" name
 
+
 type AProvider() =
     interface Provider with
         member _.Launch(name, loc, block) =
@@ -18,42 +19,77 @@ type BProvider() =
         member _.Launch(name, loc, block) =
             sayLaunched "B" (name, loc, block)
 
+type CProvider() =
+    interface Provider with
+        member _.Launch(name, loc, block) =
+            sayLaunched "C" (name, loc, block)
+
+type SomeResource() =
+    member _.Attach(provider: AProvider) =
+        ()
+
+    member _.Attach(provider: BProvider) =
+        ()
+
+    interface CloudResource
+
 module App =
-    let aApp = AProvider() |> infra
-    let bApp = BProvider() |> infra
+    type MainProvider = BProvider
 
-    let bBlock = bApp "say hello" {
-        route "hello" [
-            get <| fun _ -> 
-                "hi"
-                |> ok
-                |> asyncReturn
-        ]
-    }
+    type Chunk< ^T when ^T :> Provider> = string -> Infra< ^T>
 
-    let bBlock2 = bApp "say hey" {
-        route "hey" [
-            get <| fun _ -> 
-                "hey"
-                |> ok
-                |> asyncReturn
-        ]
-    }
+    let bBlock (chunk: Chunk<BProvider>) =
+        chunk "inner b" {
+            let! x = SomeResource()
+            route "hello" []
+        }
 
-    let root sayHey = aApp "" {
-        nest bBlock
+    let bBlock2 (chunk: Chunk<BProvider>) =
+        chunk "other b" {
+            let! x = SomeResource()
+            route "hey" []
+        }
 
-        nest (gated sayHey bBlock2)
 
-        route "hi" [
-            get <| fun _ -> 
-                "hello"
-                |> ok
-                |> asyncReturn
-        ]
-    }
+    let aBlock (chunk: Chunk<AProvider>) =
+        chunk "top a" {
+            let! x = SomeResource()
+            route "hi" []
+        }
 
-let program = App.root true
+    let coreBlock (chunk: Chunk<MainProvider>) =
+        chunk "core" {
+            let! x = SomeResource()
+            route "/" []
+        }
+
+    let root (chunk: Chunk<MainProvider>) aChunk bChunk =
+        fun sayHey ->
+            chunk "root" {
+                nest (bBlock bChunk)
+
+                nest (gated sayHey (bBlock2 bChunk))
+
+                nest (aBlock aChunk)
+
+                route "hi" [
+                    get <| fun _ -> 
+                        "hello"
+                        |> ok
+                        |> asyncReturn
+                ]
+            }
+
+let inline chunked provider name = Infra (name, provider)
+
+let program = 
+    let bProvider = BProvider()
+
+    App.root
+    <| chunked bProvider
+    <| chunked (AProvider())
+    <| chunked bProvider
+    <| true
 
 [<EntryPoint>]
 let main argv =
