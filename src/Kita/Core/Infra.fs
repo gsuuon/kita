@@ -15,7 +15,7 @@ type AttachedBlock =
 
 type Block<'T when 'T :> Provider> =
     abstract member Name : string
-    abstract member Attach : Managed -> AttachedBlock
+    abstract member Attach : Managed<'T> -> AttachedBlock
 
 type RootBlockAttribute(name: string) =
     inherit System.Attribute()
@@ -43,9 +43,9 @@ module AttachedBlock =
         getNested pathsAll root
 
 type Managed =
-    { resources: CloudResource list
+    { resources : CloudResource list
       handlers: MethodHandler list
-      nested : Map<string, Block<Provider>>
+      nested : Map<string, Managed>
       path : string list }
       static member Empty =
         { resources = []
@@ -53,7 +53,8 @@ type Managed =
           nested = Map.empty
           path = List.empty }
 
-type State<'a, 'b, 'c> = State of (Managed -> 'c * Managed)
+type State<'provider, 'result> =
+    State of ('provider -> Managed -> 'result * Managed)
 
 type Resource<'T when 'T :> CloudResource> = Resource of 'T
 
@@ -120,7 +121,7 @@ type Infra< ^Provider when ^Provider :> Provider>
     member inline this.Run(State runner) =
         { new Block< ^Provider> with
             member _.Name = this.Name
-            member block.Attach (initState: Managed) =
+            member block.Attach (initState, provider) =
                 print initState "run" ""
 
                 // if initstate is [] then this is the root
@@ -129,7 +130,7 @@ type Infra< ^Provider when ^Provider :> Provider>
                 let ranState =
                     { initState with path = path }
                         // Add name to state path
-                    |> runner
+                    |> runner provider
                     |> snd
                 
                 let nestedAttached =
