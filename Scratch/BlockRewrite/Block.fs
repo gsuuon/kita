@@ -55,19 +55,24 @@ type PublicBlock<'P>(name: string) =
 type Block< ^Provider when 'Provider :> Provider>(name: string) =
     inherit PublicBlock<'Provider>(name)
 
-    member inline block.Bind
+    member inline _.Bind
         (
             resource: ^R when ^R: (member Attach : 'Provider -> unit),
             f
         ) =
         Runner
         <| fun s ->
-
             let (Runner m) = f resource
 
             ( ^R : (member Attach : ^Provider -> unit) (resource, s.provider))
 
             s |> addResource resource |> m
+
+    member inline _.Bind (m, f) =
+        Runner
+        <| fun s ->
+            let (Runner r) = f m
+            r s
 
     member inline _.Return (x) = Runner (fun s -> x, s)
 
@@ -86,13 +91,31 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
         (
             ctx,
                 [<ProjectionParameter>]
-            getNested
+            getNested,
+                [<ProjectionParameter>]
+            getProvider
         ) =
         Runner
         <| fun s ->
             let nested = getNested ctx
+            let provider = getProvider ctx
 
-            nested
+            (), nested
+                { provider = provider
+                  managed = Managed.Empty }
+
+    [<CustomOperation("child", MaintainsVariableSpaceUsingBind=true)>]
+    member inline _.Child
+        (
+            ctx,
+                [<ProjectionParameter>]
+            getChild
+        ) =
+        Runner
+        <| fun s ->
+            let child = getChild ctx
+
+            (), child s
 
 type AProvider() =
     member _.Name = "A"
@@ -135,22 +158,56 @@ module Program =
                 printfn "Attached aa9e"
             interface CloudResource
             
-    let mainProvider name = Block<AProvider>(name)
-    
-    let leafBlock =
-        mainProvider "leaf" {
-            let! x = ABResource()
-            return ()
-        }
+    module SimpleScenario =
+        let mainProvider name = Block<AProvider>(name)
+        
+        let leafBlock =
+            mainProvider "leaf" {
+                let! x = ABResource()
+                return ()
+            }
 
-    let rootBlock =
-        mainProvider "root" {
-            let! x = ABResource()
-            return ()
-        }
+        let rootBlock =
+            mainProvider "root" {
+                let! x = ABResource()
+                return ()
+            }
 
-    let go =
-        let aProvider = AProvider()
+        let go =
+            let aProvider = AProvider()
 
-        rootBlock |> run aProvider |> ignore
-        leafBlock |> run aProvider 
+            rootBlock |> run aProvider |> ignore
+            leafBlock |> run aProvider 
+
+    module NestedScenario =
+        let mainProvider name = Block<AProvider>(name)
+
+        module SameProviderScenario =
+            let blockInner =
+                mainProvider "inner" {
+                    let! x = AResource()
+                    return ()
+                }
+
+            let blockOuter =
+                mainProvider "outer" {
+                    let! x = ABResource()
+                    child blockInner
+                    return ()
+                }
+
+        module DifferentProvidersScenario =
+            let blockInner =
+                Block<BProvider> "inner" {
+                    let! x = BResource()
+                    return ()
+                }
+
+            let blockOuter =
+                let bProvider = BProvider()
+
+                mainProvider "outer" {
+                    let! x = AResource()
+                    nest blockInner bProvider
+                    return ()
+                }
