@@ -6,6 +6,7 @@ type Provider =
     abstract member Run : unit -> unit
 
 type CloudResource = interface end
+
 type MethodHandler = interface end
 
 type BasicResource() = interface CloudResource
@@ -16,14 +17,39 @@ type ProviderLauncher =
 type Managed =
     { resources : CloudResource list
       handlers: MethodHandler list
-      path : string list
-      nested : Map<string, Managed>
+      nested : Map<string, AttachedBlock>
+        // TODO-next
+        // does this work to allow me to launch/run any node in tree?
+        // NOTE
+        // If I launch/run per provider, then providers that are used for
+        // multiple blocks will run all those blocks
+        // I don't think I want this, but maybe it's okay?
+        // problems:
+        // can't target a specific block to run
+        //  -- but when would i need to do that?
+        //  -- i'm running root, i want all children to run, eventually
+        //  -- only in the context of a specific child would i want to run
+        //  -- just that child. but if each context is actually provider
+        //  -- specific rather than child specific, (which i think makes
+        //  -- sense) then it's not necessary to ever launch / run a
+        //  -- specific node / managed
+        // If i want to just to provider launching, i can add a set of
+        // providers to BindState, and add to that set as I add child/nest
+        // then the top level run exposes a way to launch / run the set
+        // order shouldn't matter, everything should communicate async
+        // (as in, nothing expects that anything else is already
+        // provisioned or deployed, or even available)
       }
-      static member Empty =
+      static member Empty = // FIXME easy to get launch/run mixed up, same signature
         { resources = []
           handlers = []
-          nested = Map.empty
-          path = List.empty }
+          nested = Map.empty }
+and AttachedBlock =
+    { name : string
+      managed : Managed
+      launch : unit -> unit
+      run : unit -> unit
+      path : string list }
 
 type BindState<'T when 'T :> Provider> =
     { provider : 'T
@@ -34,20 +60,21 @@ type Runner<'T, 'result when 'T :> Provider> =
 
 [<AutoOpen>]
 module BindState =
-    let addResource (resource: #CloudResource) state =
-        { state with
-            managed =
-                { state.managed with
-                      resources =
-                        resource :> CloudResource
-                            :: state.managed.resources } }
+    let updateManaged updater state : BindState<_> =
+        { state with managed = updater state.managed }
 
-type AttachedBlock =
-    { name : string
-      state : Managed
-      launch : unit -> unit
-      run : unit -> unit
-      nested : Map<string, AttachedBlock> }
+    let addResource resource =
+        updateManaged
+        <| fun managed ->
+            { managed with
+                resources =
+                    resource :> CloudResource :: managed.resources }
+
+    let addNested nested =
+        updateManaged
+        <| fun managed ->
+            { managed with
+                nested = Map.add nested.name nested managed.nested }
 
 type PublicBlock<'P>(name: string) =
     member _.Name = name
@@ -57,7 +84,10 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
 
     member inline _.Bind
         (
-            resource: ^R when ^R: (member Attach : 'Provider -> unit),
+            resource:
+                ^R when 'R: (member Attach : 'Provider -> unit)
+                    and 'R :> CloudResource
+                ,
             f
         ) =
         Runner
@@ -68,23 +98,24 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
 
             s |> addResource resource |> m
 
-    member inline _.Bind (m, f) =
-        Runner
-        <| fun s ->
-            let (Runner r) = f m
-            r s
-
     member inline _.Return (x) = Runner (fun s -> x, s)
 
     member inline _.Zero () = Runner (fun s -> (), s)
 
     member inline _.Delay (f) = f
-    member inline _.Run (f) =
+    member inline block.Run (f) =
         let (Runner runner) = f()
 
         fun s ->
             let (_, attached : BindState<'Provider>) = runner s
-            attached
+            let managed = attached.managed
+
+            { name = block.Name
+              managed = managed
+              launch = fun () -> attached.provider.Launch()
+              run = fun () -> attached.provider.Run()
+              path = [] // FIXME actually do this
+              }
 
     [<CustomOperation("nest", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Nest
@@ -94,13 +125,13 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
             getNested,
                 [<ProjectionParameter>]
             getProvider
-        ) =
-        Runner
-        <| fun s ->
+        ) : 'a -> AttachedBlock
+        =
+        fun _ ->
             let nested = getNested ctx
             let provider = getProvider ctx
 
-            (), nested
+            nested
                 { provider = provider
                   managed = Managed.Empty }
 
@@ -110,12 +141,28 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
             ctx,
                 [<ProjectionParameter>]
             getChild
-        ) =
-        Runner
-        <| fun s ->
+        ) : BindState<'Provider> -> AttachedBlock
+        =
+        fun s ->
             let child = getChild ctx
 
-            (), child s
+            child s
+
+    member inline _.Bind
+        (
+
+            child: BindState<'Provider> -> AttachedBlock,
+            f
+        )
+        =
+        Runner
+        <| fun s ->
+            let (Runner r) = f()
+            let attached = child s
+
+            s
+            |> addNested attached
+            |> r
 
 type AProvider() =
     member _.Name = "A"
@@ -132,30 +179,28 @@ type BProvider() =
 
 [<AutoOpen>]
 module Operation =
-    let run provider block =
-        let mutable managed = Managed.Empty
-
+    let attach (provider: #Provider) block =
         { provider = provider
-          managed = managed } |> block
+          managed = Managed.Empty } |> block
 
 module Program =
     [<AutoOpen>]
     module Resources =
         type ABResource() =
             member _.Attach (p: AProvider) =
-                printfn "Attached t34n"
+                printfn "Attached AB to A"
             member _.Attach (p: BProvider) =
-                printfn "Attached f0wa"
+                printfn "Attached AB to B"
             interface CloudResource
 
         type AResource() =
             member _.Attach (p: AProvider) =
-                printfn "Attached qr23"
+                printfn "Attached A to A"
             interface CloudResource
 
         type BResource() =
             member _.Attach (p: BProvider) =
-                printfn "Attached aa9e"
+                printfn "Attached B to B"
             interface CloudResource
             
     module SimpleScenario =
@@ -173,11 +218,12 @@ module Program =
                 return ()
             }
 
-        let go =
+        let go () =
             let aProvider = AProvider()
 
-            rootBlock |> run aProvider |> ignore
-            leafBlock |> run aProvider 
+            let attachedRoot = rootBlock |> attach aProvider
+            (* let attachedLeaf = leafBlock |> attach aProvider *) 
+            ()
 
     module NestedScenario =
         let mainProvider name = Block<AProvider>(name)
@@ -196,8 +242,8 @@ module Program =
                     return ()
                 }
 
-            let go =
-                blockOuter |> run (AProvider())
+            let go () =
+                blockOuter |> attach (AProvider())
 
         module DifferentProvidersScenario =
             let blockInner =
@@ -215,5 +261,5 @@ module Program =
                     return ()
                 }
 
-            let go =
-                blockOuter |> run (AProvider())
+            let go () =
+                blockOuter |> attach (AProvider())
