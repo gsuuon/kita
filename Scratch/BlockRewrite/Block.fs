@@ -83,7 +83,7 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
         let (Runner runner) = f()
 
         fun s ->
-            let (_, attached) = runner s
+            let (_, attached : BindState<'Provider>) = runner s
             attached
 
     [<CustomOperation("nest", MaintainsVariableSpaceUsingBind=true)>]
@@ -196,6 +196,9 @@ module Program =
                     return ()
                 }
 
+            let go =
+                blockOuter |> run (AProvider())
+
         module DifferentProvidersScenario =
             let blockInner =
                 Block<BProvider> "inner" {
@@ -211,3 +214,6 @@ module Program =
                     nest blockInner bProvider
                     return ()
                 }
+
+            let go =
+                blockOuter |> run (AProvider())
