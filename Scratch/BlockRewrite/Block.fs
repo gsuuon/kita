@@ -106,9 +106,12 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
     member inline block.Run (f) =
         let (Runner runner) = f()
 
+
         fun s ->
             let (_, attached : BindState<'Provider>) = runner s
             let managed = attached.managed
+
+            printfn "Attached %s" block.Name
 
             { name = block.Name
               managed = managed
@@ -136,7 +139,7 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
                   managed = Managed.Empty }
 
     [<CustomOperation("child", MaintainsVariableSpaceUsingBind=true)>]
-    member inline _.Child
+    member inline block.Child
         (
             ctx,
                 [<ProjectionParameter>]
@@ -144,9 +147,12 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
         ) : BindState<'Provider> -> AttachedBlock
         =
         fun s ->
-            let child = getChild ctx
+            let (Runner r) = ctx
+            let child = getChild r
 
-            child s
+            let (x, s') = r s
+
+            child s'
 
     member inline _.Bind
         (
@@ -157,7 +163,7 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
         =
         Runner
         <| fun s ->
-            let (Runner r) = f()
+            let (Runner r) = f ()
             let attached = child s
 
             s
@@ -176,7 +182,6 @@ type BProvider() =
         member this.Launch () = printfn "Launched %s" this.Name
         member this.Run () = printfn "Ran %s" this.Name
 
-
 [<AutoOpen>]
 module Operation =
     let attach (provider: #Provider) block =
@@ -186,21 +191,32 @@ module Operation =
 module Program =
     [<AutoOpen>]
     module Resources =
-        type ABResource() =
+        let report resource provider name =
+            let endText =
+                match name with
+                | "" -> ""
+                | n -> " - " + n
+
+            printfn "Attached %s to %s%s" resource provider endText
+
+        type ABResource(name: string) =
+            new() = ABResource("")
             member _.Attach (p: AProvider) =
-                printfn "Attached AB to A"
+                report "AB" "A" name
             member _.Attach (p: BProvider) =
-                printfn "Attached AB to B"
+                report "AB" "B" name
             interface CloudResource
 
-        type AResource() =
+        type AResource(name: string) =
+            new() = AResource("")
             member _.Attach (p: AProvider) =
-                printfn "Attached A to A"
+                report "A" "A" name
             interface CloudResource
 
-        type BResource() =
+        type BResource(name: string) =
+            new() = BResource("")
             member _.Attach (p: BProvider) =
-                printfn "Attached B to B"
+                report "B" "B" name
             interface CloudResource
             
     module SimpleScenario =
@@ -215,6 +231,7 @@ module Program =
         let rootBlock =
             mainProvider "root" {
                 let! x = ABResource()
+                let! y = AResource()
                 return ()
             }
 
@@ -222,7 +239,7 @@ module Program =
             let aProvider = AProvider()
 
             let attachedRoot = rootBlock |> attach aProvider
-            (* let attachedLeaf = leafBlock |> attach aProvider *) 
+            let attachedLeaf = leafBlock |> attach aProvider 
             ()
 
     module NestedScenario =
@@ -231,14 +248,17 @@ module Program =
         module SameProviderScenario =
             let blockInner =
                 mainProvider "inner" {
-                    let! x = AResource()
+                    let! x = AResource("three")
                     return ()
                 }
 
             let blockOuter =
                 mainProvider "outer" {
-                    let! x = ABResource()
+                    let! x = ABResource("one")
+                    printfn "hi"
                     child blockInner
+                    let! y = ABResource("two")
+                    printfn "bye"
                     return ()
                 }
 
