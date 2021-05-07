@@ -121,25 +121,28 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
     [<CustomOperation("nest", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Nest
         (
-            ctx,
+            Runner retCtx,
                 [<ProjectionParameter>]
             getNested,
                 [<ProjectionParameter>]
             getProvider
-        ) : 'a -> AttachedBlock
+        ) : BindState<_> -> 'a * AttachedBlock
         =
-        fun _ ->
+        fun s ->
+            let (ctx, _) = retCtx s
+
             let nested = getNested ctx
             let provider = getProvider ctx
 
-            nested
+            ctx
+            , nested
                 { provider = provider
                   managed = Managed.Empty }
 
     [<CustomOperation("child", MaintainsVariableSpaceUsingBind=true)>]
     member inline block.Child
         (
-            retCtx,
+            Runner retCtx,
                 // This is a tuple of all variables in space as a tuple
                 // wrapped with _.Return
                 [<ProjectionParameter>]
@@ -149,8 +152,7 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
         ) : BindState<'Provider> -> 'a * AttachedBlock
         =
         fun s ->
-            let (Runner r) = retCtx
-            let (ctx, _) = r s
+            let (ctx, _) = retCtx s
             let child = getChild ctx
 
             ctx, child s
@@ -299,7 +301,7 @@ module Program =
         module DifferentProvidersScenario =
             let blockInner =
                 Block<BProvider> "inner" {
-                    let! x = BResource()
+                    let! x = BResource("one")
                     return ()
                 }
 
@@ -307,8 +309,8 @@ module Program =
                 let bProvider = BProvider()
 
                 mainProvider "outer" {
-                    let! x = AResource()
-                    (* nest blockInner bProvider *)
+                    let! x = AResource("two")
+                    nest blockInner bProvider
                     return ()
                 }
 
