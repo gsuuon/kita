@@ -33,7 +33,7 @@ type Managed =
         //  -- specific rather than child specific, (which i think makes
         //  -- sense) then it's not necessary to ever launch / run a
         //  -- specific node / managed
-        // If i want to just to provider launching, i can add a set of
+        // If i want to just do provider launching, i can add a set of
         // providers to BindState, and add to that set as I add child/nest
         // then the top level run exposes a way to launch / run the set
         // order shouldn't matter, everything should communicate async
@@ -184,18 +184,6 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
             |> addNested attached
             |> r
 
-type AProvider() =
-    member _.Name = "A"
-    interface Provider with
-        member this.Launch () = printfn "Launched %s" this.Name
-        member this.Run () = printfn "Ran %s" this.Name
-
-type BProvider() =
-    member _.Name = "B"
-    interface Provider with
-        member this.Launch () = printfn "Launched %s" this.Name
-        member this.Run () = printfn "Ran %s" this.Name
-
 [<AutoOpen>]
 module Operation =
     let attach (provider: #Provider) block =
@@ -206,130 +194,50 @@ module Operation =
         attachedBlock.launch()
         attachedBlock.run()
 
-module Program =
-    [<AutoOpen>]
-    module Resources =
-        let report resource provider name =
-            let endText =
-                match name with
-                | "" -> ""
-                | n -> " - " + n
+module Providers =
+    type AProvider() =
+        member _.Name = "A"
+        interface Provider with
+            member this.Launch () = printfn "Launched %s" this.Name
+            member this.Run () = printfn "Ran %s" this.Name
 
-            printfn "Attached %s to %s%s" resource provider endText
+    type BProvider() =
+        member _.Name = "B"
+        interface Provider with
+            member this.Launch () = printfn "Launched %s" this.Name
+            member this.Run () = printfn "Ran %s" this.Name
 
-        type ABResource(name: string) =
-            new() = ABResource("")
-            member _.Attach (p: AProvider) =
-                report "AB" "A" name
-            member _.Attach (p: BProvider) =
-                report "AB" "B" name
+module Resources =
+    open Providers
+    
+    let report resource provider name =
+        let endText =
+            match name with
+            | "" -> ""
+            | n -> " - " + n
 
-            member _.DoABThing() = printfn "%s did AB thing" name
-            interface CloudResource
+        printfn "Attached %s to %s%s" resource provider endText
 
-        type AResource(name: string) =
-            new() = AResource("")
-            member _.Attach (p: AProvider) =
-                report "A" "A" name
-            member _.DoAThing() = printfn "%s did A thing" name
-            interface CloudResource
+    type ABResource(name: string) =
+        new() = ABResource("")
+        member _.Attach (p: AProvider) =
+            report "AB" "A" name
+        member _.Attach (p: BProvider) =
+            report "AB" "B" name
 
-        type BResource(name: string) =
-            new() = BResource("")
-            member _.Attach (p: BProvider) =
-                report "B" "B" name
-            member _.DoBThing() = printfn "%s did B thing" name
-            interface CloudResource
-            
-    module SimpleScenario =
-        let mainProvider name = Block<AProvider>(name)
-        
-        let leafBlock =
-            mainProvider "leaf" {
-                let! x = ABResource()
-                return ()
-            }
+        member _.DoABThing() = printfn "%s did AB thing" name
+        interface CloudResource
 
-        let rootBlock =
-            mainProvider "root" {
-                let! x = ABResource()
-                x.DoABThing()
-                let! y = AResource()
-                return ()
-            }
+    type AResource(name: string) =
+        new() = AResource("")
+        member _.Attach (p: AProvider) =
+            report "A" "A" name
+        member _.DoAThing() = printfn "%s did A thing" name
+        interface CloudResource
 
-        let go () =
-            let aProvider = AProvider()
-
-            printfn "Root"
-            let attachedRoot = rootBlock |> attach aProvider
-            attachedRoot.launch()
-            attachedRoot.run()
-
-            printfn "Leaf"
-            let attachedLeaf = leafBlock |> attach aProvider 
-            attachedLeaf.launch()
-            attachedLeaf.run()
-            ()
-
-    module NestedScenario =
-        let mainProvider name = Block<AProvider>(name)
-
-        module SameProviderScenario =
-            let blockInner =
-                mainProvider "inner" {
-                    let! x = AResource("three")
-                    return ()
-                }
-
-            let blockOuter =
-                mainProvider "outer" {
-                    let! x = ABResource("one")
-                    printfn "hi"
-                    child blockInner
-                    let! y = ABResource("two")
-                    printfn "bye"
-                    return ()
-                }
-
-            let go () =
-                blockOuter |> attach (AProvider()) |> launchAndRun
-
-        module SameProviderResourcePassScenario =
-            let blockInner (resource: ABResource) =
-                mainProvider "inner" {
-                    let! x = AResource("three")
-                    printfn "Got resource: %A" resource
-                    return ()
-                }
-
-            let blockOuter =
-                mainProvider "outer" {
-                    let! x = ABResource("one")
-                    let x' = x
-                    child (blockInner x')
-                    let! y = AResource("two")
-                    return ()
-                }
-
-            let go () =
-                blockOuter |> attach (AProvider()) |> launchAndRun
-
-        module DifferentProvidersScenario =
-            let blockInner =
-                Block<BProvider> "inner" {
-                    let! x = BResource("one")
-                    return ()
-                }
-
-            let blockOuter =
-                let bProvider = BProvider()
-
-                mainProvider "outer" {
-                    let! x = AResource("two")
-                    nest blockInner bProvider
-                    return ()
-                }
-
-            let go () =
-                blockOuter |> attach (AProvider()) |> launchAndRun
+    type BResource(name: string) =
+        new() = BResource("")
+        member _.Attach (p: BProvider) =
+            report "B" "B" name
+        member _.DoBThing() = printfn "%s did B thing" name
+        interface CloudResource
