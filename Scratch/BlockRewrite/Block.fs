@@ -99,13 +99,11 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
             s |> addResource resource |> m
 
     member inline _.Return (x) = Runner (fun s -> x, s)
-
     member inline _.Zero () = Runner (fun s -> (), s)
 
     member inline _.Delay (f) = f
     member inline block.Run (f) =
         let (Runner runner) = f()
-
 
         fun s ->
             let (_, attached : BindState<'Provider>) = runner s
@@ -141,30 +139,32 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
     [<CustomOperation("child", MaintainsVariableSpaceUsingBind=true)>]
     member inline block.Child
         (
-            ctx,
+            retCtx,
+                // This is a tuple of all variables in space as a tuple
+                // wrapped with _.Return
                 [<ProjectionParameter>]
             getChild
-        ) : BindState<'Provider> -> AttachedBlock
+                // This is a generated fn that takes the variable
+                // space tuple and returns the one passed to the operation
+        ) : BindState<'Provider> -> 'a * AttachedBlock
         =
         fun s ->
-            let (Runner r) = ctx
-            let child = getChild r
+            let (Runner r) = retCtx
+            let (ctx, _) = r s
+            let child = getChild ctx
 
-            let (x, s') = r s
-
-            child s'
+            ctx, child s
 
     member inline _.Bind
         (
-
-            child: BindState<'Provider> -> AttachedBlock,
+            child: BindState<'Provider> -> 'a * AttachedBlock,
             f
         )
         =
         Runner
         <| fun s ->
-            let (Runner r) = f ()
-            let attached = child s
+            let (ctx, attached) = child s
+            let (Runner r) = f ctx
 
             s
             |> addNested attached
@@ -205,18 +205,22 @@ module Program =
                 report "AB" "A" name
             member _.Attach (p: BProvider) =
                 report "AB" "B" name
+
+            member _.DoABThing() = printfn "%s did AB thing" name
             interface CloudResource
 
         type AResource(name: string) =
             new() = AResource("")
             member _.Attach (p: AProvider) =
                 report "A" "A" name
+            member _.DoAThing() = printfn "%s did A thing" name
             interface CloudResource
 
         type BResource(name: string) =
             new() = BResource("")
             member _.Attach (p: BProvider) =
                 report "B" "B" name
+            member _.DoBThing() = printfn "%s did B thing" name
             interface CloudResource
             
     module SimpleScenario =
@@ -231,6 +235,7 @@ module Program =
         let rootBlock =
             mainProvider "root" {
                 let! x = ABResource()
+                x.DoABThing()
                 let! y = AResource()
                 return ()
             }
@@ -265,6 +270,32 @@ module Program =
             let go () =
                 blockOuter |> attach (AProvider())
 
+        module SameProviderResourcePassScenario =
+            let blockInnerA =
+                mainProvider "inner" {
+                    let! x = AResource("four")
+                    return ()
+                }
+
+            let blockInnerB (resource: ABResource) =
+                mainProvider "inner" {
+                    let! x = AResource("three")
+                    printfn "Got resource: %A" resource
+                    return ()
+                }
+
+            let blockOuter =
+                mainProvider "outer" {
+                    let! x = ABResource("one")
+                    let x' = x
+                    child blockInnerA
+                    let! y = AResource("two")
+                    return ()
+                }
+
+            let go () =
+                blockOuter |> attach (AProvider())
+
         module DifferentProvidersScenario =
             let blockInner =
                 Block<BProvider> "inner" {
@@ -277,7 +308,7 @@ module Program =
 
                 mainProvider "outer" {
                     let! x = AResource()
-                    nest blockInner bProvider
+                    (* nest blockInner bProvider *)
                     return ()
                 }
 
