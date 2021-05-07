@@ -113,8 +113,20 @@ type Block< ^Provider when 'Provider :> Provider>(name: string) =
 
             { name = block.Name
               managed = managed
-              launch = fun () -> attached.provider.Launch()
-              run = fun () -> attached.provider.Run()
+              launch = fun () ->
+                attached.provider.Launch()
+
+                managed.nested
+                |> Map.iter
+                    (fun name nestedAttached -> nestedAttached.launch())
+
+              run = fun () ->
+                attached.provider.Run()
+
+                managed.nested
+                |> Map.iter
+                    (fun name nestedAttached -> nestedAttached.run())
+
               path = [] // FIXME actually do this
               }
 
@@ -190,6 +202,10 @@ module Operation =
         { provider = provider
           managed = Managed.Empty } |> block
 
+    let launchAndRun (attachedBlock: AttachedBlock) =
+        attachedBlock.launch()
+        attachedBlock.run()
+
 module Program =
     [<AutoOpen>]
     module Resources =
@@ -245,8 +261,15 @@ module Program =
         let go () =
             let aProvider = AProvider()
 
+            printfn "Root"
             let attachedRoot = rootBlock |> attach aProvider
+            attachedRoot.launch()
+            attachedRoot.run()
+
+            printfn "Leaf"
             let attachedLeaf = leafBlock |> attach aProvider 
+            attachedLeaf.launch()
+            attachedLeaf.run()
             ()
 
     module NestedScenario =
@@ -270,16 +293,10 @@ module Program =
                 }
 
             let go () =
-                blockOuter |> attach (AProvider())
+                blockOuter |> attach (AProvider()) |> launchAndRun
 
         module SameProviderResourcePassScenario =
-            let blockInnerA =
-                mainProvider "inner" {
-                    let! x = AResource("four")
-                    return ()
-                }
-
-            let blockInnerB (resource: ABResource) =
+            let blockInner (resource: ABResource) =
                 mainProvider "inner" {
                     let! x = AResource("three")
                     printfn "Got resource: %A" resource
@@ -290,13 +307,13 @@ module Program =
                 mainProvider "outer" {
                     let! x = ABResource("one")
                     let x' = x
-                    child blockInnerA
+                    child (blockInner x')
                     let! y = AResource("two")
                     return ()
                 }
 
             let go () =
-                blockOuter |> attach (AProvider())
+                blockOuter |> attach (AProvider()) |> launchAndRun
 
         module DifferentProvidersScenario =
             let blockInner =
@@ -315,4 +332,4 @@ module Program =
                 }
 
             let go () =
-                blockOuter |> attach (AProvider())
+                blockOuter |> attach (AProvider()) |> launchAndRun
