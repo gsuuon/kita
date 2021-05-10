@@ -4,8 +4,48 @@ open BlockRewrite
 open BlockRewrite.Providers
 open BlockRewrite.Resources
 
+module InitializationMethods =  
+    let inline block name = Block<_, unit>(name)
+    type BuiltBlock<'P when 'P :> Provider> =
+        BindState<'P, unit> -> AttachedBlock
+
+    let mainProvider = AProvider()
+
+    let okLooseBlock = 
+        // Okay loose as AResource uniquely defines a provider
+        block "okLoose" {
+            let! x = AResource("two")
+            return ()
+        }
+
+    let annotatedLooseBlock : BuiltBlock<AProvider> =
+        // If the resource supports multiple providers,
+        // then we need an annotation
+        block "loose" {
+            let! x = ABResource("three")
+            return ()
+        }
+        // We could alias AProvider to another type that represents
+        // the 'main' provider type, or however we want to structure it
+        // so that we still have just a one line change if we want to
+        // swap out a group of blocks to another provider
+        // e.g.
+        // type MainProvider = AProvider
+        // let blockA : BuiltBlock<MainProvider> =
+        // let blockB : BuiltBlock<MainProvider> =
+
+    let immediatelyAttachLooseBlock =
+        // Or to immediately call attach
+        block "loose" {
+            let! x = ABResource("three")
+            return ()
+        }
+        |> attach mainProvider
+
+
+
 module SimpleScenario =
-    let mainProvider name = Block<AProvider>(name)
+    let mainProvider name = Block<AProvider, unit>(name)
     
     let leafBlock =
         mainProvider "leaf" {
@@ -36,7 +76,7 @@ module SimpleScenario =
         ()
 
 module NestedScenario =
-    let mainProvider name = Block<AProvider>(name)
+    let mainProvider name = Block<AProvider, unit>(name)
 
     module SameProviderScenario =
         let blockInner =
@@ -80,7 +120,7 @@ module NestedScenario =
 
     module DifferentProvidersScenario =
         let blockInner =
-            Block<BProvider> "inner" {
+            Block<BProvider, unit> "inner" {
                 let! x = BResource("one")
                 return ()
             }
