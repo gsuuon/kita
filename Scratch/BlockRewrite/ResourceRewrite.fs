@@ -17,190 +17,81 @@ type ValueResourceFrontend<'A>(backend: ValueResourceBackend<'A>) =
     // Initialized and ready for use
     member _.Value () = backend.Value()
 
-// REMOVE
 type OtherProvider() =
     interface Provider with
         member _.Launch () = ()
         member _.Run () = ()
 
-type ResourceBuilder = interface end
+type ResourceBuilder<'P, 'A when 'P :> Provider> =
+    abstract Build : 'P -> 'A
 
-type ValueResourceBuilder<'A>(name: string, value: 'A) =
+type ValueResource<'A>(name: string, value: 'A) =
     member val Value = value
-    member _.Build (p: SomeProvider) =
-        ValueResourceFrontend
-            { new ValueResourceBackend<_> with
-                member _.Value () = value }
 
-// REMOVE
-    member _.Build (p: OtherProvider) =
-        ValueResourceFrontend
-            { new ValueResourceBackend<_> with 
-                member _.Value () = value }
+    interface ResourceBuilder<SomeProvider, ValueResourceFrontend<'A>>
+        with
+        member _.Build (p: SomeProvider) = 
+            ValueResourceFrontend
+                { new ValueResourceBackend<_> with
+                    member _.Value () = value }
 
-    member _.Start (p: SomeProvider) = ()
-    member _.Start (p: OtherProvider) = ()
-
-    interface ResourceBuilder
-
-// Adding support in ValueResource for some other provider
-(* type OtherProvider() = *)
-(*     interface Provider with *)
-(*         member _.Launch () = () *)
-(*         member _.Run () = () *)
+    interface ResourceBuilder<OtherProvider, ValueResourceFrontend<'A>> 
+        with
+        member _.Build (p: OtherProvider) =
+            ValueResourceFrontend
+                { new ValueResourceBackend<_> with 
+                    member _.Value () = value }
 
 type AnotherProvider() =
     interface Provider with
         member _.Launch () = ()
         member _.Run () = ()
 
-(* type ValueResourceBuilder<'A> with *)
-(*     member x.Build (p: OtherProvider) = *)
-(*         ValueResourceFrontend *)
-(*             { new ValueResourceBackend<_> with *) 
-(*                 member _.Value () = x.Value } *)
+type ResourceBlockBuilder<'P when 'P :> Provider>(provider: 'P) =
+    member _.Bind
+        (
+            builder : ResourceBuilder<'P, 'A>,
+            f
+        ) =
+        let x = builder.Build provider
+        f x
 
-module TinyRepro =
-    type Resource() =
-        member _.Build (p: SomeProvider) =
-            "hi"
+    member _.Return x = x
+    member _.Zero () = ()
 
-        member _.Build (p: OtherProvider) =
-            0
+module MyResources =
+    let valueResource name value =
+        { new ResourceBuilder<AnotherProvider, ValueResourceFrontend<'a>>
+            with
+            member _.Build (p: AnotherProvider) =
+                ValueResourceFrontend
+                    { new ValueResourceBackend<_> with 
+                        member _.Value () = value } }
 
-    module Ops =
-        let inline build
-            (builder: 'R when 'R : (member Build : 'P -> 'A ))
-            (provider : 'P)
-            =
-            ( ^R : (member Build : 'P -> 'A) (builder, provider))
-
-    type ResourceBuilderBlock< ^P when ^P :> Provider>(name, provider) =
-    // Returns 'A as obj when 'P doesn't match
-        member inline _.Bind
-            (
-                builder : ^R when 'R : (member Build : 'P -> 'A ),
-                f
-            ) =
-
-            let x = Ops.build builder provider
-
-            f x
-
-    // Correctly errors Return type is unit
-        (* member inline _.Bind *) 
-        (*     ( *)
-        (*         builder : ^R when ^R : (member Start : ^P -> unit ), *)
-        (*         f *)
-        (*     ) = *)
-        (*     let x = ( ^R : (member Start : ^P -> unit) (builder, provider)) *)
-
-        (*     f x *)
-
-        member inline _.Zero = ()
-        member inline _.Return x = x
-
-    let worksBlock =
-        ResourceBuilderBlock<_>("", SomeProvider()) {
-            let! valResource = Resource()
+module Scenario =
+    let works =
+        ResourceBlockBuilder<_>(SomeProvider()) {
+            let! x = ValueResource("", 0)
             return ()
         }
 
-    let worksBlock2 =
-        ResourceBuilderBlock<_>("", OtherProvider()) {
-            let! valResource = Resource()
+    let works2 =
+        ResourceBlockBuilder<_>(OtherProvider()) {
+            let! x = ValueResource("", 0)
             return ()
         }
 
-    let breaksBlock =
-        ResourceBuilderBlock<_>("", AnotherProvider()) {
-            let! valResource = Resource()
+    let breaks =
+        ResourceBlockBuilder<_>(AnotherProvider()) {
+            let! x = ValueResource("", 0)
             return ()
         }
 
-module Scenario = 
-    open TinyRepro
+module MyResourcesScenario =
+    open MyResources
 
-    let worksBlock =
-        ResourceBuilderBlock<_>("", SomeProvider()) {
-            let! valResource = ValueResourceBuilder("", 0)
+    let works = 
+        ResourceBlockBuilder<_>(AnotherProvider()) {
+            let! x = valueResource "hey" 0
             return ()
         }
-
-    let breaksBlock =
-        ResourceBuilderBlock<_>("", AnotherProvider()) {
-            let! valResource = ValueResourceBuilder("", 0)
-            return ()
-        }
-
-    let block name = ResourceBuilderBlock<_>(name, SomeProvider())
-
-    let mainBlock =
-        block "main" {
-            let! aVal = ValueResourceBuilder("foo", 0)
-                // ValueResourceBuilder doesn't have a
-                // Build member which takes AnotherProvider
-                // SRTP should fail here
-                //
-                // Type extension confuses SRTP. If I comment out the
-                // extension, then the compile error is in the bind
-                // overload failing to match
-                // 
-                // Related to the issue on type extensions being
-                // visible to srtp constraints
-                // https://github.com/dotnet/fsharp/pull/6805
-
-                // Is this matching another bind?
-                // but if I remove the bind overload in ResourceBuilderBlock
-                // this doesnt' resolve
-
-                // Okay, this has nothing to do with type extensions
-                // since its breaking below without them
-
-            (* let x = aVal.Value() *)
-                // FIXME
-                // this should be breaking at `let! aVal`
-                // not here
-            (* printfn "Got %A" x *)
-            return ()
-        }
-
-
-module QuickRepro =
-    let inline build< ^T, 'P, 'A when ^T : ( member Build : 'P -> 'A)>
-        (builder: 'T)
-        (provider: 'P) : 'A
-        =
-        ( ^T : ( member Build : 'P -> 'A ) (builder, provider) )
-
-    type Builder< ^P, 'A>() =
-        member inline _.Build< ^T when ^T : ( member Build : 'P -> 'A)>
-            (
-                builder: ^T when ^T : ( member Build : 'P -> 'A),
-                provider: 'P
-            ) =
-            ( ^T : ( member Build : 'P -> 'A ) (builder, provider) )
-
-
-    let x = build<_, SomeProvider, _> (ValueResourceBuilder("hi", 0))
-    let y = build<_, OtherProvider, _> (ValueResourceBuilder("hi", 0))
-    let z = build<_, AnotherProvider, _> (ValueResourceBuilder("hi", 0))
-
-    let x' = Builder<SomeProvider, _>().Build (ValueResourceBuilder("", 0), SomeProvider())
-    let y' = Builder<OtherProvider, _>().Build (ValueResourceBuilder("", 0), OtherProvider())
-    let z' = Builder<AnotherProvider, _>().Build (ValueResourceBuilder("", 0), AnotherProvider())
-    // Correctly fails here
-
-module SimpleReproExtensionTrait =
-    type Foo() =
-        member x.Call (_x: int) = ()
-
-    let inline call (usable: ^T when ^T : (member Call : int -> unit) ) =
-        ( ^T : (member Call : int -> unit) (usable, 0) )
-
-    let x = call (Foo())
-
-    type Foo with
-        member x.Call (_x: string) = ()
-        
-    let y = call (Foo())
