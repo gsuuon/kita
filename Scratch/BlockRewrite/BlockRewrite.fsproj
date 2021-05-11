@@ -9,6 +9,7 @@
     <Compile Include="Block.fs" />
     <Compile Include="Scenarios/Basic.fs" />
     <Compile Include="Scenarios/Full.fs" />
+    <Compile Include="ResourceRewrite.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
