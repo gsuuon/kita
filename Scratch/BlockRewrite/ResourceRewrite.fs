@@ -23,24 +23,7 @@ type OtherProvider() =
         member _.Run () = ()
 
 type ResourceBuilder<'P, 'A when 'P :> Provider> =
-    abstract Build : 'P -> 'A
-
-type ValueResource<'A>(name: string, value: 'A) =
-    member val Value = value
-
-    interface ResourceBuilder<SomeProvider, ValueResourceFrontend<'A>>
-        with
-        member _.Build (p: SomeProvider) = 
-            ValueResourceFrontend
-                { new ValueResourceBackend<_> with
-                    member _.Value () = value }
-
-    interface ResourceBuilder<OtherProvider, ValueResourceFrontend<'A>> 
-        with
-        member _.Build (p: OtherProvider) =
-            ValueResourceFrontend
-                { new ValueResourceBackend<_> with 
-                    member _.Value () = value }
+    { build : 'P -> 'A }
 
 type AnotherProvider() =
     interface Provider with
@@ -61,12 +44,10 @@ type ResourceBlockBuilder<'P when 'P :> Provider>(provider: 'P) =
 
 module MyResources =
     let valueResource name value =
-        { new ResourceBuilder<AnotherProvider, ValueResourceFrontend<'a>>
-            with
-            member _.Build (p: AnotherProvider) =
-                ValueResourceFrontend
-                    { new ValueResourceBackend<_> with 
-                        member _.Value () = value } }
+        { build = fun (p: AnotherProvider) ->
+            ValueResourceFrontend
+                { new ValueResourceBackend<_> with 
+                    member _.Value () = value } }
 
 module Scenario =
     let works =
