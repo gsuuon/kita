@@ -19,7 +19,7 @@ module UserDomain =
 
         { state with user = resultUser }
 
-type DomainBuilder<'P, 'U, 'D when 'P :> Provider>
+type DomainBuilder<'U, 'D>
     (userDomain: UserDomain<'U, 'D>)
     =
     member val UserDomain = userDomain

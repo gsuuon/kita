@@ -10,9 +10,9 @@ module RouteState =
     let addRoute route handler (routeState: RouteState) =
         { routeState with
             routes = Map.add route handler routeState.routes }
-type RoutedBlockBuilder<'P, 'U when 'P :> Provider>(userDomain)
+type RoutedBlockBuilder<'U>(userDomain)
     =
-    inherit DomainBuilder<'P, 'U, RouteState>(userDomain)
+    inherit DomainBuilder<'U, RouteState>(userDomain)
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
     member this.Route

@@ -9,9 +9,9 @@ module ProcState =
     let addProc proc (procState: ProcState) =
         { procState with procs = proc :: procState.procs }
 
-type ProcBlockBuilder<'P, 'U when 'P :> Provider>(userDomain)
+type ProcBlockBuilder<'U>(userDomain)
     =
-    inherit DomainBuilder<'P, 'U, ProcState>(userDomain)
+    inherit DomainBuilder<'U, ProcState>(userDomain)
 
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind=true)>]
     member inline this.Proc
