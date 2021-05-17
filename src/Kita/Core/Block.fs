@@ -92,27 +92,11 @@ type BlockBuilder< ^Provider, 'U when 'Provider :> Provider>
     ) =
     inherit PublicBlockBuilder<'Provider>(name, provider)
 
-    member inline block.Bind
-        (
-            builder: ResourceBuilder<'Provider, 'A>,
-            f
-        ) =
-        Runner
-        <| fun s ->
-            let resource = builder.Build block.Provider
-                // TODO
-                // if i get a compile error that provider is not public
-                // use block.Provider
-                // else remove PublicBlockBuilder inherit
-
-            let (Runner r) = f resource
-
-            s |> BlockBindState.addResource resource |> r
-
     member inline _.Return (x) = Runner.ret x
     member inline _.Zero () = Runner.ret ()
     member inline _.Yield x = Runner.ret x
     member inline _.Delay f = f
+
     member inline block.Run (f) =
         let (Runner r) = f()
 
@@ -190,6 +174,23 @@ type BlockBuilder< ^Provider, 'U when 'Provider :> Provider>
         (*         let resource = creator resourceDef *)
 
         (*         ctx, s |> addResource resource *)
+
+    member inline block.Bind
+        (
+            builder: ResourceBuilder<'Provider, 'A>,
+            f
+        ) =
+        Runner
+        <| fun s ->
+            let resource = builder.Build block.Provider
+                // TODO
+                // if i get a compile error that provider is not public
+                // use block.Provider
+                // else remove PublicBlockBuilder inherit
+
+            let (Runner r) = f resource
+
+            s |> BlockBindState.addResource resource |> r
 
     [<CustomOperation("nest", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Nest
