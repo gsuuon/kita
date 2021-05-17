@@ -6,7 +6,7 @@
   <ItemGroup>
     <Compile Include="Core/Http.fs" />
     <Compile Include="Core/HttpHelpers.fs" />
-    <Compile Include="Core/Infra.fs" />
+    <Compile Include="Core/Block.fs" />
     <Compile Include="Run.fs" />
     <Compile Include="Operations.fs" />
   </ItemGroup>
