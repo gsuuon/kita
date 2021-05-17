@@ -19,7 +19,11 @@ module UserDomain =
 
         { state with user = resultUser }
 
-type DomainBuilder<'P, 'U, 'D when 'P :> Provider>() =
+type DomainBuilder<'P, 'U, 'D when 'P :> Provider>
+    (userDomain: UserDomain<'U, 'D>)
+    =
+    member val UserDomain = userDomain
+
     member _.Return x = x
     member _.Bind (m, f) = f m
     member _.Delay f = f

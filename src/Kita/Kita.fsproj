@@ -4,11 +4,11 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Core/Http.fs" />
-    <Compile Include="Core/HttpHelpers.fs" />
     <Compile Include="Core/Block.fs" />
     <Compile Include="Domains/DomainBuilder.fs" />
     <Compile Include="Domains/Routes.fs" />
+    <Compile Include="Domains/Routes/Http.fs" />
+    <Compile Include="Domains/Routes/HttpHelpers.fs" />
     <Compile Include="Domains/Procs.fs" />
     <Compile Include="Domains/Scenarios.fs" />
     <Compile Include="Run.fs" />

@@ -1,4 +1,6 @@
-module Kita.Core.Http.Helpers
+module Kita.Domains.Routes.HttpHelpers
+
+open Kita.Domains.Routes
 
 let asyncReturn x = async { return x }
 let konst x _ = x

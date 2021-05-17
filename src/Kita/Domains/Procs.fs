@@ -11,10 +11,10 @@ module ProcState =
 
 type ProcBlockBuilder<'P, 'U when 'P :> Provider>(userDomain)
     =
-    inherit DomainBuilder<'P, 'U, ProcState>()
+    inherit DomainBuilder<'P, 'U, ProcState>(userDomain)
 
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind=true)>]
-    member inline _.Proc
+    member inline this.Proc
         (
             ctx,
                 [<ProjectionParameter>]
@@ -25,5 +25,5 @@ type ProcBlockBuilder<'P, 'U when 'P :> Provider>(userDomain)
 
             s
             |> UserDomain.update<'P, 'U, ProcState>
-                userDomain
+                this.UserDomain
                 (ProcState.addProc proc)

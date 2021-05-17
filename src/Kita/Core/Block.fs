@@ -1,7 +1,5 @@
 namespace Kita.Core
 
-open Kita.Core.Http
-
 type Provider =
         // Needs to be idempotent if many-to-one Block / Provider relationship
     abstract member Launch : unit -> unit
@@ -14,11 +12,9 @@ type ResourceBuilder<'P, 'A when 'P :> Provider and 'A :> CloudResource> =
 
 type Managed =
     { resources : CloudResource list
-      handlers: MethodHandler list
       nested : Map<string, AttachedBlock> }
     static member Empty =
         { resources = []
-          handlers = []
           nested = Map.empty }
 and AttachedBlock =
     { name : string
@@ -57,10 +53,6 @@ module BlockBindState =
                 nested = Map.add nested.name nested managed.nested }
 
     let getResources = Runner (fun s -> s.managed.resources, s)
-
-    let addRoutes pathHandlers state =
-        { state with
-              handlers = state.handlers @ pathHandlers }
 
 module Runner =
     let inline ret x = Runner (fun s -> x, s)

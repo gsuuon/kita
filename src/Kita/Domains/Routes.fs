@@ -12,10 +12,10 @@ module RouteState =
             routes = Map.add route handler routeState.routes }
 type RoutedBlockBuilder<'P, 'U when 'P :> Provider>(userDomain)
     =
-    inherit DomainBuilder<'P, 'U, RouteState>()
+    inherit DomainBuilder<'P, 'U, RouteState>(userDomain)
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
-    member _.Route
+    member this.Route
         (
             ctx,
                 [<ProjectionParameter>]
@@ -29,6 +29,6 @@ type RoutedBlockBuilder<'P, 'U when 'P :> Provider>(userDomain)
 
             s
             |> UserDomain.update<'P, 'U, RouteState>
-                userDomain
+                this.UserDomain
                 (RouteState.addRoute route handler)
     
