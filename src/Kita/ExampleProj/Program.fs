@@ -6,23 +6,23 @@ open Kita.Compile
 
 let mutable root = Unchecked.defaultof<AttachedBlock>
 
-let sayLaunched name _ = printfn "Launched %s" name
+let sayLaunched = printfn "Launched %s"
 
 
 type AProvider() =
     interface Provider with
-        member _.Launch(name, loc, block) =
-            sayLaunched "A" (name, loc, block)
+        member _.Launch () =
+            sayLaunched "A"
 
 type BProvider() =
     interface Provider with
-        member _.Launch(name, loc, block) =
-            sayLaunched "B" (name, loc, block)
+        member _.Launch () =
+            sayLaunched "B"
 
 type CProvider() =
     interface Provider with
-        member _.Launch(name, loc, block) =
-            sayLaunched "C" (name, loc, block)
+        member _.Launch () =
+            sayLaunched "C"
 
 type SomeResource() =
     member _.Attach(provider: AProvider) =
@@ -49,7 +49,6 @@ module App =
             let! x = SomeResource()
             route "hey" []
         }
-
 
     let aBlock (chunk: Chunk<AProvider>) =
         chunk "top a" {

@@ -3,19 +3,20 @@ namespace rec Kita.Core
 open Kita.Core.Http
 
 type Provider =
-    abstract member Launch :
-        name: string * location: string * attachedBlockPath: string list
-            -> unit
+        // Needs to be idempotent if many-to-one Block / Provider relationship
+    abstract member Launch : unit -> unit
+    abstract member Run : unit -> unit
 
 type AttachedBlock =
     { name : string
       state : Managed
-      launch : string -> string -> unit
+      launch : unit -> unit
+      run : unit -> unit
       nested : Map<string, AttachedBlock> }
 
 type Block<'T when 'T :> Provider> =
     abstract member Name : string
-    abstract member Attach : Managed<'T> -> AttachedBlock
+    abstract member Attach : Managed -> AttachedBlock
 
 type RootBlockAttribute(name: string) =
     inherit System.Attribute()
@@ -53,8 +54,8 @@ type Managed =
           nested = Map.empty
           path = List.empty }
 
-type State<'provider, 'result> =
-    State of ('provider -> Managed -> 'result * Managed)
+type State<'result> =
+    State of (Managed -> 'result * Managed)
 
 type Resource<'T when 'T :> CloudResource> = Resource of 'T
 
@@ -91,10 +92,13 @@ module Helper =
         <| label
         <| item
 
+    let noop = fun () -> ()
+
 type NoBlock<'T when 'T :> Provider>() =
     interface Block<'T> with
         member _.Attach (_) =
-            { launch = fun _ _ -> ()
+            { launch = Helper.noop
+              run = Helper.noop
               name = "No name"
               state = Managed.Empty
               nested = Map.empty
@@ -121,7 +125,7 @@ type Infra< ^Provider when ^Provider :> Provider>
     member inline this.Run(State runner) =
         { new Block< ^Provider> with
             member _.Name = this.Name
-            member block.Attach (initState, provider) =
+            member block.Attach (initState) =
                 print initState "run" ""
 
                 // if initstate is [] then this is the root
