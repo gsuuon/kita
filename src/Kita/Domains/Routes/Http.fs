@@ -1,4 +1,4 @@
-namespace Kita.Core.Http
+namespace Kita.Domains.Routes
 
 open System.Collections.Generic
 // This is all placeholder stuff, will probably replace with existing library

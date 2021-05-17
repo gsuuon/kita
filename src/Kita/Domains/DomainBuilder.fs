@@ -24,4 +24,3 @@ type DomainBuilder<'P, 'U, 'D when 'P :> Provider>() =
     member _.Bind (m, f) = f m
     member _.Delay f = f
     member _.Run f = f()
-
