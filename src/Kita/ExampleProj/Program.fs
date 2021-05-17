@@ -1,5 +1,4 @@
 open Kita.Core
-open Kita.Core.Infra
 open Kita.Core.Http
 open Kita.Core.Http.Helpers
 open Kita.Compile
@@ -7,7 +6,6 @@ open Kita.Compile
 let mutable root = Unchecked.defaultof<AttachedBlock>
 
 let sayLaunched = printfn "Launched %s"
-
 
 type AProvider() =
     interface Provider with
@@ -36,7 +34,7 @@ type SomeResource() =
 module App =
     type MainProvider = BProvider
 
-    type Chunk< ^T when ^T :> Provider> = string -> Infra< ^T>
+    type Chunk< ^T when ^T :> Provider> = string -> BlockBuilder< 'T, unit>
 
     let bBlock (chunk: Chunk<BProvider>) =
         chunk "inner b" {

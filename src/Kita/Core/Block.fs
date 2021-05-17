@@ -7,10 +7,10 @@ type Provider =
     abstract member Launch : unit -> unit
     abstract member Run : unit -> unit
 
-type ResourceBuilder<'P, 'A when 'P :> Provider> =
-    abstract Build : 'P -> 'A
-
 type CloudResource = interface end
+
+type ResourceBuilder<'P, 'A when 'P :> Provider and 'A :> CloudResource> =
+    abstract Build : 'P -> 'A
 
 type Managed =
     { resources : CloudResource list
