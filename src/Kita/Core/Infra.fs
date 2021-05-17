@@ -1,4 +1,4 @@
-namespace rec Kita.Core
+namespace Kita.Core
 
 open Kita.Core.Http
 
@@ -7,20 +7,63 @@ type Provider =
     abstract member Launch : unit -> unit
     abstract member Run : unit -> unit
 
-type AttachedBlock =
+type ResourceBuilder<'P, 'A when 'P :> Provider> =
+    abstract Build : 'P -> 'A
+
+type CloudResource = interface end
+
+type Managed =
+    { resources : CloudResource list
+      handlers: MethodHandler list
+      nested : Map<string, AttachedBlock> }
+    static member Empty =
+        { resources = []
+          handlers = []
+          nested = Map.empty }
+and AttachedBlock =
     { name : string
-      state : Managed
+      managed : Managed
       launch : unit -> unit
       run : unit -> unit
-      nested : Map<string, AttachedBlock> }
+      path : string list }
 
-type Block<'T when 'T :> Provider> =
-    abstract member Name : string
-    abstract member Attach : Managed -> AttachedBlock
+type BlockBindState<'P, 'U when 'P :> Provider> =
+    { provider : 'P
+      user : 'U
+      managed : Managed }
+    static member Provider provider =
+        { provider = provider
+          user = Unchecked.defaultof<'U>
+          managed = Managed.Empty }
 
-type RootBlockAttribute(name: string) =
-    inherit System.Attribute()
-    new () = RootBlockAttribute("")
+type Runner<'P, 'U, 'result when 'P :> Provider> =
+    Runner of (BlockBindState<'P, 'U> -> 'result * BlockBindState<'P, 'U>)
+
+module BlockBindState =
+    let updateManaged updater state : BlockBindState<_, _> =
+        { state with managed = updater state.managed }
+
+    let addResource resource =
+        updateManaged
+        <| fun managed ->
+            { managed with
+                resources =
+                    resource :> CloudResource :: managed.resources }
+
+    let addNested nested =
+        updateManaged
+        <| fun managed ->
+            { managed with
+                nested = Map.add nested.name nested managed.nested }
+
+    let getResources = Runner (fun s -> s.managed.resources, s)
+
+    let addRoutes pathHandlers state =
+        { state with
+              handlers = state.handlers @ pathHandlers }
+
+module Runner =
+    let inline ret x = Runner (fun s -> x, s)
 
 module AttachedBlock =
     let getNestedByPath (root: AttachedBlock) pathsAll =
@@ -28,7 +71,7 @@ module AttachedBlock =
             match pathsLeft with
             | [] -> current
             | head::rest ->
-                match current.nested.TryGetValue head with
+                match current.managed.nested.TryGetValue head with
                 | true, attachedBlock ->
                     getNested rest attachedBlock
                 | false, _ ->
@@ -43,282 +86,183 @@ module AttachedBlock =
 
         getNested pathsAll root
 
-type Managed =
-    { resources : CloudResource list
-      handlers: MethodHandler list
-      nested : Map<string, Managed>
-      path : string list }
-      static member Empty =
-        { resources = []
-          handlers = []
-          nested = Map.empty
-          path = List.empty }
-
-type State<'result> =
-    State of (Managed -> 'result * Managed)
-
-type Resource<'T when 'T :> CloudResource> = Resource of 'T
-
-module Ops =
-    let inline attach< ^C, ^R when ^R: (member Attach : ^C -> unit) and ^C :> Provider>
-        (
-            resource: ^R,
-            config: ^C
-        )
-        =
-        (^R: (member Attach : ^C -> unit) (resource, config))
-
-type CloudResource = interface end
-
-[<AutoOpen>]
-module State =
-    let addResource (resource: #CloudResource) state =
-        { state with
-              resources = resource :> CloudResource :: state.resources }
-
-    let getResources = State(fun s -> s.resources, s)
-
-    let addRoutes pathHandlers state =
-        { state with
-              handlers = state.handlers @ pathHandlers }
-
-    let ret x = State(fun s -> x, s)
-
-[<AutoOpen>]
-module Helper =
-    let inline print (m: Managed) label item =
-        printfn "%s| %s: %A"
-        <| (m.path |> String.concat ".")
-        <| label
-        <| item
-
-    let noop = fun () -> ()
-
-type NoBlock<'T when 'T :> Provider>() =
-    interface Block<'T> with
-        member _.Attach (_) =
-            { launch = Helper.noop
-              run = Helper.noop
-              name = "No name"
-              state = Managed.Empty
-              nested = Map.empty
-              }
-
-        member _.Name = "No block"
-
-    static member Instance = NoBlock() :> Block<'T>
-
-type PublicInfra<'P>(name: string, provider: 'P) =
+type PublicBlockBuilder<'P>(name: string, provider: 'P) =
     // Gets around issues with inline accessing private data and SRTP:
     // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
     // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
     member _.Name = name
     member _.Provider = provider
 
-type Infra< ^Provider when ^Provider :> Provider>
+type BlockBuilder< ^Provider, 'U when 'Provider :> Provider>
     (
         name: string,
-        provider: ^Provider
+        provider: 'Provider
     ) =
-    inherit PublicInfra<'Provider>(name, provider)
+    inherit PublicBlockBuilder<'Provider>(name, provider)
 
-    member inline this.Run(State runner) =
-        { new Block< ^Provider> with
-            member _.Name = this.Name
-            member block.Attach (initState) =
-                print initState "run" ""
-
-                // if initstate is [] then this is the root
-                let path = initState.path @ [block.Name]
-
-                let ranState =
-                    { initState with path = path }
-                        // Add name to state path
-                    |> runner provider
-                    |> snd
-                
-                let nestedAttached =
-                    ranState.nested
-                    |> Map.map (fun k v ->
-                        printfn "Attaching child: %s" k
-
-                        { Managed.Empty with path = path }
-                        |> v.Attach
-
-                        )
-
-                {
-                    name = block.Name
-                    state = ranState
-                    nested = nestedAttached
-                    launch = fun name location ->
-                        printfn "Nested providers: %i"
-                            ranState.nested.Count
-
-                        printfn "FIXME does the nested block actually work?"
-
-                        nestedAttached
-                        |> Map.iter (fun _k v ->
-                            v.launch name location
-                            )
-
-                        this.Provider.Launch(name, location, ranState.path)
-                }
-        }
-
-    member inline this.Bind
+    member inline block.Bind
         (
-            resource: ^R when ^R: (member Attach : ^Provider -> unit),
+            builder: ResourceBuilder<'Provider, 'A>,
             f
         ) =
-        State
-        <| fun (s: Managed) ->
-
-            print s "Resource" resource
-
-            let (State m) = f resource
-
-            Ops.attach (resource, this.Provider)
-
-            s |> addResource resource |> m
-
-    member inline _.Bind(State m, f) =
-        State
-        <| fun s' ->
-
-            let (x, s) = m s'
-            print s' "Value" x
-
-            let (State m) = f x
-
-            m s
-
-    member inline _.Zero() =
-        State
+        Runner
         <| fun s ->
-            print s "zero" ""
+            let resource = builder.Build block.Provider
+                // TODO
+                // if i get a compile error that provider is not public
+                // use block.Provider
+                // else remove PublicBlockBuilder inherit
 
-            (), Managed.Empty
+            let (Runner r) = f resource
 
-    member inline _.Return x = ret x
-    member inline _.Yield x = ret x
+            s |> BlockBindState.addResource resource |> r
 
-    member inline _.Delay f =
-        State
-        <| fun state ->
+    member inline _.Return (x) = Runner.ret x
+    member inline _.Zero () = Runner.ret ()
+    member inline _.Yield x = Runner.ret x
+    member inline _.Delay f = f
+    member inline block.Run (f) =
+        let (Runner r) = f()
 
-            let (State runner) = f ()
+        fun s ->
+            let (_, attached : BlockBindState<'Provider,'U>) = r s
+            let managed = attached.managed
 
-            state |> runner
+            printfn "Attached %s" block.Name
 
-    [<CustomOperation("route", MaintainsVariableSpaceUsingBind = true)>]
-    member inline _.Route
-        (
-            State m,
-            [<ProjectionParameter>] getPath,
-            [<ProjectionParameter>] getHandlers
-        ) =
-        State
-        <| fun s ->
+            { name = block.Name
+              managed = managed
+              launch = fun () ->
+                attached.provider.Launch()
 
-            let (ctx, s) = m s
-            let path = getPath ctx
-            let handlers = getHandlers ctx
+                managed.nested
+                |> Map.iter
+                    (fun _name nestedAttached -> nestedAttached.launch())
 
-            print s "Route" path
+              run = fun () ->
+                attached.provider.Run()
 
-            let pathedHandlers = handlers |> List.map (fun h -> h path)
+                managed.nested
+                |> Map.iter
+                    (fun _name nestedAttached -> nestedAttached.run())
 
-            pathedHandlers
-            |> List.iter (fun mh -> print s "Handler" mh.handler)
+              path = [] // FIXME actually do this
+              }
 
-            ctx, s |> addRoutes pathedHandlers
 
-    [<CustomOperation("proc", MaintainsVariableSpaceUsingBind = true)>]
-    member inline _.Proc
-        // NOTE in this form, it's basically some sugar around a do!
-        // with ability to put constraints on the creator argument type
-        // trying to use do! was kind of busted because overload resolution
-        // doesn't differentiate null type, so I'd have to create
-        // a wrapper type for null-like resources and wrap everything
-        // custom operation makes this easier
-        (
-            State m,
-            [<ProjectionParameter>] getCreator,
-            [<ProjectionParameter>] getResourceDef
-        ) =
-        State
-        <| fun s ->
-            print s "Task" ""
+        (* [<CustomOperation("route", MaintainsVariableSpaceUsingBind = true)>] *)
+        (* member inline _.Route *)
+        (*     ( *)
+        (*         State m, *)
+        (*         [<ProjectionParameter>] getPath, *)
+        (*         [<ProjectionParameter>] getHandlers *)
+        (*     ) = *)
+        (*     State *)
+        (*     <| fun s -> *)
 
-            let (ctx, s) = m s
+        (*         let (ctx, s) = m s *)
+        (*         let path = getPath ctx *)
+        (*         let handlers = getHandlers ctx *)
 
-            let resourceDef = getResourceDef ctx
-            let creator = getCreator ctx
+        (*         print s "Route" path *)
 
-            let resource = creator resourceDef
+        (*         let pathedHandlers = handlers |> List.map (fun h -> h path) *)
 
-            ctx, s |> addResource resource
+        (*         pathedHandlers *)
+        (*         |> List.iter (fun mh -> print s "Handler" mh.handler) *)
 
-    [<CustomOperation("nest", MaintainsVariableSpaceUsingBind = true)>]
+        (*         ctx, s |> addRoutes pathedHandlers *)
+
+        (* [<CustomOperation("proc", MaintainsVariableSpaceUsingBind = true)>] *)
+        (* member inline _.Proc *)
+        (*     // NOTE in this form, it's basically some sugar around a do! *)
+        (*     // with ability to put constraints on the creator argument type *)
+        (*     // trying to use do! was kind of busted because overload resolution *)
+        (*     // doesn't differentiate null type, so I'd have to create *)
+        (*     // a wrapper type for null-like resources and wrap everything *)
+        (*     // custom operation makes this easier *)
+        (*     ( *)
+        (*         State m, *)
+        (*         [<ProjectionParameter>] getCreator, *)
+        (*         [<ProjectionParameter>] getResourceDef *)
+        (*     ) = *)
+        (*     State *)
+        (*     <| fun s -> *)
+        (*         print s "Task" "" *)
+
+        (*         let (ctx, s) = m s *)
+
+        (*         let resourceDef = getResourceDef ctx *)
+        (*         let creator = getCreator ctx *)
+
+        (*         let resource = creator resourceDef *)
+
+        (*         ctx, s |> addResource resource *)
+
+    [<CustomOperation("nest", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Nest
         (
-            State m,
-            [<ProjectionParameter>] getNested
+            Runner retCtx,
+                [<ProjectionParameter>]
+            getNested,
+                [<ProjectionParameter>]
+            getProvider
+        ) : BlockBindState<_, 'u> -> 'a * AttachedBlock
+        =
+        fun s ->
+            let (ctx, _) = retCtx s
+
+            let nested = getNested ctx
+            let provider = getProvider ctx
+
+            ctx, nested (BlockBindState<_,_>.Provider provider)
+
+    [<CustomOperation("child", MaintainsVariableSpaceUsingBind=true)>]
+    member inline _.Child
+        (
+            Runner retCtx,
+                // This is a tuple of all variables in space as a tuple
+                // wrapped with _.Return
+                [<ProjectionParameter>]
+            getChild
+                // This is a generated fn that takes the variable
+                // space tuple and returns the one passed to the operation
+        ) : BlockBindState<'Provider, _> -> 'a * AttachedBlock
+        =
+        fun s ->
+            let (ctx, _) = retCtx s
+            let child = getChild ctx
+
+            ctx, child s
+
+    member inline _.Bind
+        (
+            child: BlockBindState<'Provider, _> -> 'a * AttachedBlock,
+            f
         ) =
-        State
-        <| fun state ->
-            let (ctx, s) = m state
+        Runner
+        <| fun s ->
+            let (ctx, attached) = child s
+            let (Runner r) = f ctx
 
-            let innerBlock : Block<'T> = getNested ctx
+            s
+            |> BlockBindState.addNested attached
+            |> r
 
-            if innerBlock :? NoBlock<'T> then
-                printfn "Not adding child, noop"
-                ctx, s
-            else
-                printfn "Adding child: %s" innerBlock.Name
+    member inline _.Bind
+        (
+            carry: BlockBindState<'Provider, _> ->
+                   BlockBindState<'Provider, _>,
+            f
+        ) =
+        Runner
+        <| fun s ->
+            let (Runner r) = f()
+            carry s |> r
 
-                let nextNested =
-                    let nestedBlock =
-                        { new Block<Provider> with
-                            // This is cast of Block<#Provider> to Block<Provider>
-                            member _.Name = innerBlock.Name
-                            member b.Attach (x) = innerBlock.Attach(x)
-                        }
-
-                    match s.nested.TryGetValue innerBlock.Name with
-                    | true, _block -> // ??
-                        printfn "Nested block name collision: %s" innerBlock.Name
-                            // TODO what to do in this case?
-                        s.nested.Add (innerBlock.Name, nestedBlock) 
-                    | false, _ ->
-                        s.nested.Add (innerBlock.Name, nestedBlock) 
-
-                ctx, { s with nested = nextNested }
-
-module Infra =
-    let inline infra< ^Provider when ^Provider :> Provider>
+module Block =
+    let inline block< ^Provider when 'Provider :> Provider>
         provider
         name
         =
-        Infra< ^Provider>(name, provider)
-
-    let inline gated cond (block: Block<'T>) =
-        if cond then block else NoBlock.Instance
-
-    let launch
-        (appName: string)
-        (location: string)
-        (block: AttachedBlock)
-        =
-        block.launch appName location
-
-    let launchNested
-        (appName: string)
-        (location: string)
-        nestedPath
-        (rootBlock: AttachedBlock)
-        =
-        nestedPath
-        |> AttachedBlock.getNestedByPath rootBlock
-        |> launch appName location
+        BlockBuilder< ^Provider, unit>(name, provider)
