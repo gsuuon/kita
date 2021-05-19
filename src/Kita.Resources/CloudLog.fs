@@ -3,14 +3,20 @@ namespace Kita.Resources
 open Kita.Core
 open Kita.Providers
 
-type CloudLog() =
-    let activated = false
+type CloudLogFrontend() =
+    interface CloudResource
 
     member _.Info = printfn "%s"
     member _.Warn = printfn "%s"
     member _.Error = printfn "%s"
 
-    member _.Attach(cfg: Azure) = printfn "Attach: Azure Log"
-    member _.Attach(cfg: Local) = printfn "Attach: Local Log"
+type CloudLog() = 
+    interface ResourceBuilder<Local, CloudLogFrontend> with
+        member _.Build _p =
+            printfn "Built Local CloudLog"
+            CloudLogFrontend()
 
-    interface CloudResource
+    interface ResourceBuilder<Azure, CloudLogFrontend> with
+        member _.Build _p =
+            printfn "Built Azure CloudLog"
+            CloudLogFrontend()
