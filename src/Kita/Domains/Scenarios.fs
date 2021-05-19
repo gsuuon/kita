@@ -33,12 +33,12 @@ module JustRoutesScenario =
                 member _.set s rs = { s with routeState = rs }
             }
 
-    let routedBlock provider name =
-        BlockBuilder<_, RoutedBlockState>(name, provider)
+    let routedBlock name =
+        Block<_, RoutedBlockState> name
 
-    let blockA (provider: AProvider) =
-        routedBlock provider "A" {
-            let! x = AResourceBuilder()
+    let blockA =
+        routedBlock "A" {
+            let! _x = AResourceBuilder()
 
             do! routes {
                 route "hey" (fun () -> ())
@@ -56,8 +56,8 @@ module RoutesAndProcScenario =
         procState : ProcState
     }
 
-    let routeAndProcBlock provider name =
-        BlockBuilder<_, RouteAndProcBlockState>(name, provider)
+    let routeAndProcBlock name =
+        Block<_, RouteAndProcBlockState>(name)
 
     let routes =
         RoutedBlockBuilder<RouteAndProcBlockState>
@@ -73,9 +73,9 @@ module RoutesAndProcScenario =
                 member _.set s d = { s with procState = d }
             }
 
-    let blockA (provider: AProvider) =
-        routeAndProcBlock provider "A" {
-            let! x = AResourceBuilder()
+    let blockA =
+        routeAndProcBlock "A" {
+            let! _x = AResourceBuilder()
 
             do! routes {
                 route "hey" (fun () -> ())

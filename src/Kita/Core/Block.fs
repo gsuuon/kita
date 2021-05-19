@@ -78,19 +78,14 @@ module AttachedBlock =
 
         getNested pathsAll root
 
-type PublicBlockBuilder<'P>(name: string, provider: 'P) =
+type PublicBlockBuilder<'P>(name: string) =
     // Gets around issues with inline accessing private data and SRTP:
     // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
     // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
     member _.Name = name
-    member _.Provider = provider
 
-type BlockBuilder< ^Provider, 'U when 'Provider :> Provider>
-    (
-        name: string,
-        provider: 'Provider
-    ) =
-    inherit PublicBlockBuilder<'Provider>(name, provider)
+type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
+    inherit PublicBlockBuilder<'Provider>(name)
 
     member inline _.Return (x) = Runner.ret x
     member inline _.Zero () = Runner.ret ()
@@ -182,7 +177,7 @@ type BlockBuilder< ^Provider, 'U when 'Provider :> Provider>
         ) =
         Runner
         <| fun s ->
-            let resource = builder.Build block.Provider
+            let resource = builder.Build s.provider
                 // TODO
                 // if i get a compile error that provider is not public
                 // use block.Provider
@@ -258,4 +253,4 @@ module Block =
         provider
         name
         =
-        BlockBuilder< ^Provider, unit>(name, provider)
+        Block< ^Provider, unit>(name)
