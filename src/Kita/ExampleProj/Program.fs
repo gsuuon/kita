@@ -23,18 +23,18 @@ type CProvider() =
             sayLaunched "C"
         member _.Run () = ()
 
-type SomeResourceFrontend() =
-    member _.DoThing () = ()
+type SomeResourceFrontend<'T>(v: 'T) =
+    member _.GetThing () = v
     interface CloudResource
 
-type SomeResource() =
-    interface ResourceBuilder<AProvider, SomeResourceFrontend> with
+type SomeResource<'T>(v) =
+    interface ResourceBuilder<AProvider, SomeResourceFrontend<'T>> with
         member _.Build x =
-            SomeResourceFrontend()
+            SomeResourceFrontend(v)
 
-    interface ResourceBuilder<BProvider, SomeResourceFrontend> with
+    interface ResourceBuilder<BProvider, SomeResourceFrontend<'T>> with
         member _.Build x =
-            SomeResourceFrontend()
+            SomeResourceFrontend(v)
 
 module RestrictedProviderScenario =
     // Restrict an add-on to a specific provider
@@ -98,7 +98,8 @@ module NestScenario =
 
     let blockA : BlockRunner<AProvider, AppState> =
         block "blockA" {
-            let! _x = SomeResource()
+            let! x = SomeResource 0
+            let y = x.GetThing()
             return ()
         }
 
