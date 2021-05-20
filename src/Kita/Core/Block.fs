@@ -27,15 +27,16 @@ type BlockBindState<'P, 'U when 'P :> Provider> =
     { provider : 'P
       user : 'U
       managed : Managed }
-    static member Provider provider =
-        { provider = provider
-          user = Unchecked.defaultof<'U>
-          managed = Managed.Empty }
 
 type Runner<'P, 'U, 'result when 'P :> Provider> =
     Runner of (BlockBindState<'P, 'U> -> 'result * BlockBindState<'P, 'U>)
 
 module BlockBindState =
+    let create provider =
+        { provider = provider
+          user = Unchecked.defaultof<'U>
+          managed = Managed.Empty }
+
     let updateManaged updater state : BlockBindState<_, _> =
         { state with managed = updater state.managed }
 
@@ -84,6 +85,7 @@ type PublicBlockBuilder<'P>(name: string) =
     // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
     member _.Name = name
 
+open BlockBindState
 type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
     inherit PublicBlockBuilder<'Provider>(name)
 
@@ -120,56 +122,6 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
               path = [] // FIXME actually do this
               }
 
-
-        (* [<CustomOperation("route", MaintainsVariableSpaceUsingBind = true)>] *)
-        (* member inline _.Route *)
-        (*     ( *)
-        (*         State m, *)
-        (*         [<ProjectionParameter>] getPath, *)
-        (*         [<ProjectionParameter>] getHandlers *)
-        (*     ) = *)
-        (*     State *)
-        (*     <| fun s -> *)
-
-        (*         let (ctx, s) = m s *)
-        (*         let path = getPath ctx *)
-        (*         let handlers = getHandlers ctx *)
-
-        (*         print s "Route" path *)
-
-        (*         let pathedHandlers = handlers |> List.map (fun h -> h path) *)
-
-        (*         pathedHandlers *)
-        (*         |> List.iter (fun mh -> print s "Handler" mh.handler) *)
-
-        (*         ctx, s |> addRoutes pathedHandlers *)
-
-        (* [<CustomOperation("proc", MaintainsVariableSpaceUsingBind = true)>] *)
-        (* member inline _.Proc *)
-        (*     // NOTE in this form, it's basically some sugar around a do! *)
-        (*     // with ability to put constraints on the creator argument type *)
-        (*     // trying to use do! was kind of busted because overload resolution *)
-        (*     // doesn't differentiate null type, so I'd have to create *)
-        (*     // a wrapper type for null-like resources and wrap everything *)
-        (*     // custom operation makes this easier *)
-        (*     ( *)
-        (*         State m, *)
-        (*         [<ProjectionParameter>] getCreator, *)
-        (*         [<ProjectionParameter>] getResourceDef *)
-        (*     ) = *)
-        (*     State *)
-        (*     <| fun s -> *)
-        (*         print s "Task" "" *)
-
-        (*         let (ctx, s) = m s *)
-
-        (*         let resourceDef = getResourceDef ctx *)
-        (*         let creator = getCreator ctx *)
-
-        (*         let resource = creator resourceDef *)
-
-        (*         ctx, s |> addResource resource *)
-
     member inline block.Bind
         (
             builder: ResourceBuilder<'Provider, 'A>,
@@ -185,7 +137,7 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
 
             let (Runner r) = f resource
 
-            s |> BlockBindState.addResource resource |> r
+            s |> addResource resource |> r
 
     [<CustomOperation("nest", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Nest
@@ -195,15 +147,17 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
             getNested,
                 [<ProjectionParameter>]
             getProvider
-        ) : BlockBindState<_, 'u> -> 'a * AttachedBlock
+        ) : Runner<_, 'u, 'a>
         =
-        fun s ->
+        Runner
+        <| fun s ->
             let (ctx, _) = retCtx s
 
             let nested = getNested ctx
             let provider = getProvider ctx
+            let attached = nested (create provider)
 
-            ctx, nested (BlockBindState<_,_>.Provider provider)
+            ctx, s |> addNested attached
 
     [<CustomOperation("child", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Child
@@ -215,27 +169,15 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
             getChild
                 // This is a generated fn that takes the variable
                 // space tuple and returns the one passed to the operation
-        ) : BlockBindState<'Provider, _> -> 'a * AttachedBlock
+        ) : Runner<'Provider, _, 'a>
         =
-        fun s ->
-            let (ctx, _) = retCtx s
-            let child = getChild ctx
-
-            ctx, child s
-
-    member inline _.Bind
-        (
-            child: BlockBindState<'Provider, _> -> 'a * AttachedBlock,
-            f
-        ) =
         Runner
         <| fun s ->
-            let (ctx, attached) = child s
-            let (Runner r) = f ctx
+            let (ctx, _) = retCtx s
+            let child = getChild ctx
+            let attached = child s
 
-            s
-            |> BlockBindState.addNested attached
-            |> r
+            ctx, s |> addNested attached
 
     member inline _.Bind
         (
@@ -248,9 +190,10 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
             let (Runner r) = f()
             carry s |> r
 
-module Block =
-    let inline block< ^Provider when 'Provider :> Provider>
-        provider
-        name
-        =
-        Block< ^Provider, unit>(name)
+module Operation =
+    let attach (provider: #Provider) block =
+        create provider |> block
+
+    let launchAndRun (attachedBlock: AttachedBlock) =
+        attachedBlock.launch()
+        attachedBlock.run()
