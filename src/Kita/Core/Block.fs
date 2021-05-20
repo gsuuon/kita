@@ -16,6 +16,7 @@ type Managed =
     static member Empty =
         { resources = []
           nested = Map.empty }
+
 and AttachedBlock =
     { name : string
       managed : Managed
@@ -27,7 +28,6 @@ type BlockBindState<'P, 'U when 'P :> Provider> =
     { provider : 'P
       user : 'U
       managed : Managed }
-
 type Runner<'P, 'U, 'result when 'P :> Provider> =
     Runner of (BlockBindState<'P, 'U> -> 'result * BlockBindState<'P, 'U>)
 
@@ -55,6 +55,12 @@ module BlockBindState =
         <| fun managed ->
             { managed with
                 nested = Map.add nested.name nested managed.nested }
+
+    let resetNested (x: BlockBindState<_,_>) =
+        { x with
+            managed =
+                { x.managed with
+                    nested = Map.empty } }
 
     let getResources = Runner (fun s -> s.managed.resources, s)
 
@@ -179,7 +185,7 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
         <| fun s ->
             let (ctx, sNext) = retCtx s
             let child = getChild ctx
-            let attached = child sNext
+            let attached = resetNested sNext |> child
 
             ctx, sNext |> addNested attached
 

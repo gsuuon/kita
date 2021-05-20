@@ -108,14 +108,21 @@ module NestScenario =
             return ()
         }
 
+    let blockC : BlockRunner<AProvider, AppState> =
+        block "blockC" {
+            let! _x = SomeResource()
+            return ()
+        }
+
     let main =
         let bProvider = BProvider()
 
         Block<AProvider, AppState> "main" {
             let! _x = SomeResource()
 
-            nest blockB bProvider
             child blockA
+            nest blockB bProvider
+            child blockC
         }
 
     let aProvider = AProvider()
