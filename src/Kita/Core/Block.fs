@@ -58,6 +58,9 @@ module BlockBindState =
 
     let getResources = Runner (fun s -> s.managed.resources, s)
 
+type BlockRunner<'P, 'UserState when 'P :> Provider> =
+    BlockBindState<'P, 'UserState> -> AttachedBlock
+
 module AttachedBlock =
     let getNestedByPath (root: AttachedBlock) pathsAll =
         let rec getNested pathsLeft (current: AttachedBlock) =
@@ -94,7 +97,7 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
     member inline _.Yield x = Runner.ret x
     member inline _.Delay f = f
 
-    member inline block.Run (f) =
+    member inline block.Run (f) : BlockRunner<_, _> =
         let (Runner r) = f()
 
         fun s ->
