@@ -27,7 +27,7 @@ module JustRoutesScenario =
     }
 
     let routes =
-        RoutedBlockBuilder<RoutedBlockState>
+        RoutedBlock<RoutedBlockState>
             { new UserDomain<_,_> with 
                 member _.get s = s.routeState
                 member _.set s rs = { s with routeState = rs }
@@ -60,14 +60,14 @@ module RoutesAndProcScenario =
         Block<_, RouteAndProcBlockState>(name)
 
     let routes =
-        RoutedBlockBuilder<RouteAndProcBlockState>
+        RoutedBlock<RouteAndProcBlockState>
             { new UserDomain<_, _> with 
                 member _.get s = s.routeState
                 member _.set s rs = { s with routeState = rs }
             }
 
     let procs = 
-        ProcBlockBuilder<RouteAndProcBlockState>
+        ProcBlock<RouteAndProcBlockState>
             { new UserDomain<_, _> with 
                 member _.get s = s.procState
                 member _.set s d = { s with procState = d }

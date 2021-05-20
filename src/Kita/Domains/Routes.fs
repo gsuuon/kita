@@ -10,7 +10,7 @@ module RouteState =
     let addRoute route handler (routeState: RouteState) =
         { routeState with
             routes = Map.add route handler routeState.routes }
-type RoutedBlockBuilder<'U>(userDomain)
+type RoutedBlock<'U>(userDomain)
     =
     inherit DomainBuilder<'U, RouteState>(userDomain)
 
