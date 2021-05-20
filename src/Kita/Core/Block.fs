@@ -113,7 +113,8 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
 
                 managed.nested
                 |> Map.iter
-                    (fun _name nestedAttached -> nestedAttached.launch())
+                    (fun name nestedAttached ->
+                        nestedAttached.launch())
 
               run = fun () ->
                 attached.provider.Run()
@@ -154,13 +155,13 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
         =
         Runner
         <| fun s ->
-            let (ctx, _) = retCtx s
+            let (ctx, sNext) = retCtx s
 
             let nested = getNested ctx
             let provider = getProvider ctx
             let attached = nested (create provider)
 
-            ctx, s |> addNested attached
+            ctx, sNext |> addNested attached
 
     [<CustomOperation("child", MaintainsVariableSpaceUsingBind=true)>]
     member inline _.Child
@@ -176,11 +177,11 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
         =
         Runner
         <| fun s ->
-            let (ctx, _) = retCtx s
+            let (ctx, sNext) = retCtx s
             let child = getChild ctx
-            let attached = child s
+            let attached = child sNext
 
-            ctx, s |> addNested attached
+            ctx, sNext |> addNested attached
 
     member inline _.Bind
         (
