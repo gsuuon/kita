@@ -22,22 +22,22 @@ module ScenarioCommon =
 module JustRoutesScenario =
     open ScenarioCommon
 
-    type RoutedBlockState = {
+    type RoutesBlockState = {
         routeState : RouteState
     }
 
     let routes =
-        RoutedBlock<RoutedBlockState>
+        RoutesBlock<RoutesBlockState>
             { new UserDomain<_,_> with 
                 member _.get s = s.routeState
                 member _.set s rs = { s with routeState = rs }
             }
 
-    let routedBlock name =
-        Block<_, RoutedBlockState> name
+    let routesBlock name =
+        Block<_, RoutesBlockState> name
 
     let blockA =
-        routedBlock "A" {
+        routesBlock "A" {
             let! _x = AResourceBuilder()
 
             do! routes {
@@ -60,14 +60,14 @@ module RoutesAndProcScenario =
         Block<_, RouteAndProcBlockState>(name)
 
     let routes =
-        RoutedBlock<RouteAndProcBlockState>
+        RoutesBlock<RouteAndProcBlockState>
             { new UserDomain<_, _> with 
                 member _.get s = s.routeState
                 member _.set s rs = { s with routeState = rs }
             }
 
     let procs = 
-        ProcBlock<RouteAndProcBlockState>
+        ProcsBlock<RouteAndProcBlockState>
             { new UserDomain<_, _> with 
                 member _.get s = s.procState
                 member _.set s d = { s with procState = d }

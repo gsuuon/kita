@@ -9,7 +9,7 @@ module ProcState =
     let addProc proc (procState: ProcState) =
         { procState with procs = proc :: procState.procs }
 
-type ProcBlock<'U>(userDomain)
+type ProcsBlock<'U>(userDomain)
     =
     inherit DomainBuilder<'U, ProcState>(userDomain)
 
