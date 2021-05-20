@@ -31,6 +31,9 @@ type BlockBindState<'P, 'U when 'P :> Provider> =
 type Runner<'P, 'U, 'result when 'P :> Provider> =
     Runner of (BlockBindState<'P, 'U> -> 'result * BlockBindState<'P, 'U>)
 
+module Runner =
+    let inline ret x = Runner (fun s -> x, s)
+
 module BlockBindState =
     let create provider =
         { provider = provider
@@ -55,9 +58,6 @@ module BlockBindState =
 
     let getResources = Runner (fun s -> s.managed.resources, s)
 
-module Runner =
-    let inline ret x = Runner (fun s -> x, s)
-
 module AttachedBlock =
     let getNestedByPath (root: AttachedBlock) pathsAll =
         let rec getNested pathsLeft (current: AttachedBlock) =
@@ -79,7 +79,7 @@ module AttachedBlock =
 
         getNested pathsAll root
 
-type PublicBlockBuilder<'P>(name: string) =
+type PublicBlock<'P>(name: string) =
     // Gets around issues with inline accessing private data and SRTP:
     // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
     // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
@@ -87,7 +87,7 @@ type PublicBlockBuilder<'P>(name: string) =
 
 open BlockBindState
 type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
-    inherit PublicBlockBuilder<'Provider>(name)
+    inherit PublicBlock<'Provider>(name)
 
     member inline _.Return (x) = Runner.ret x
     member inline _.Zero () = Runner.ret ()
