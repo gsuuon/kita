@@ -125,13 +125,19 @@ module NestedScenario =
                 return ()
             }
 
+        let blockInnerSame =
+            Block<AProvider, unit> "innerSame" {
+                let! x = AResource("one")
+                return ()
+            }
+
         let blockOuter =
             let bProvider = BProvider()
 
             mainProvider "outer" {
                 let! x = AResource("two")
                 nest blockInner bProvider
-                return ()
+                child blockInnerSame
             }
 
         let go () =

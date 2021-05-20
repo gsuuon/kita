@@ -55,7 +55,7 @@ type BindState<'P, 'U when 'P :> Provider> =
     { provider : 'P
       user : 'U
       managed : Managed }
-      static member Provider provider =
+      static member EmptyWithProvider provider =
         { provider = provider
           user = Unchecked.defaultof<'U>
           managed = Managed.Empty }
@@ -143,15 +143,19 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
             getNested,
                 [<ProjectionParameter>]
             getProvider
-        ) : BindState<_, 'u> -> 'a * AttachedBlock
+        ) : Runner<_,'u, 'a>
         =
-        fun s ->
+        Runner
+        <| fun s ->
             let (ctx, _) = retCtx s
 
             let nested = getNested ctx
             let provider = getProvider ctx
 
-            ctx, nested (BindState<_,_>.Provider provider)
+            let attached =
+                nested (BindState<_,_>.EmptyWithProvider provider)
+
+            ctx, s |> addNested attached
 
     [<CustomOperation("child", MaintainsVariableSpaceUsingBind=true)>]
     member inline block.Child
@@ -163,27 +167,15 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
             getChild
                 // This is a generated fn that takes the variable
                 // space tuple and returns the one passed to the operation
-        ) : BindState<'Provider, _> -> 'a * AttachedBlock
+        ) : Runner<'Provider, _, 'a>
         =
-        fun s ->
-            let (ctx, _) = retCtx s
-            let child = getChild ctx
-
-            ctx, child s
-
-    member inline _.Bind
-        (
-            child: BindState<'Provider, _> -> 'a * AttachedBlock,
-            f
-        ) =
         Runner
         <| fun s ->
-            let (ctx, attached) = child s
-            let (Runner r) = f ctx
+            let (ctx, _) = retCtx s
+            let child = getChild ctx
+            let attached = child s
 
-            s
-            |> addNested attached
-            |> r
+            ctx, s |> addNested attached
 
     member inline _.Bind
         (
@@ -199,7 +191,7 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
 [<AutoOpen>]
 module Operation =
     let attach (provider: #Provider) block =
-        BindState<_,_>.Provider provider |> block
+        BindState<_,_>.EmptyWithProvider provider |> block
 
     let launchAndRun (attachedBlock: AttachedBlock) =
         attachedBlock.launch()
