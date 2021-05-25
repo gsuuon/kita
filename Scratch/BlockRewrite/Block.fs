@@ -18,7 +18,7 @@ type Managed =
     { resources : CloudResource list
       handlers: MethodHandler list
       nested : Map<string, AttachedBlock>
-        // TODO-next
+        // TODO
         // does this work to allow me to launch/run any node in tree?
         // NOTE
         // If I launch/run per provider, then providers that are used for

@@ -35,9 +35,14 @@ module Runner =
     let inline ret x = Runner (fun s -> x, s)
 
 module BlockBindState =
-    let create provider =
+    let inline create< ^u, ^p when 'u : (static member Empty : 'u)
+                               and 'p :> Provider >
+        (provider: 'p)
+        =
+        let user = ( ^u : (static member Empty : ^u) () )
+
         { provider = provider
-          user = Unchecked.defaultof<'U>
+          user = user
           managed = Managed.Empty }
 
     let updateManaged updater state : BlockBindState<_, _> =
@@ -201,7 +206,7 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
             carry s |> r
 
 module Operation =
-    let attach (provider: #Provider) block =
+    let inline attach provider block =
         create provider |> block
 
     let launchAndRun (attachedBlock: AttachedBlock) =
