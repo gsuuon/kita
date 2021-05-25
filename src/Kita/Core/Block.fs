@@ -137,7 +137,7 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
               path = [] // FIXME actually do this
               }
 
-    member inline block.Bind
+    member inline _.Bind
         (
             builder: ResourceBuilder<'Provider, 'A>,
             f

@@ -7,7 +7,7 @@ type UserDomain<'U, 'D> =
     abstract set : 'U -> 'D -> 'U
 
 module UserDomain =
-    let inline update<'P, 'U, 'D when 'P :> Provider>
+    let update<'P, 'U, 'D when 'P :> Provider>
         (userDomain: UserDomain<'U, _>)
         (updater: 'D -> 'D)
         (state: BlockBindState<'P, 'U>)
@@ -19,12 +19,21 @@ module UserDomain =
 
         { state with user = resultUser }
 
+type DomainRunner<'P,'D, 'a when 'P :> Provider> =
+    DomainRunner of (BlockBindState<'P,'D> -> 'a * BlockBindState<'P,'D>)
+
 type DomainBuilder<'U, 'D>
     (userDomain: UserDomain<'U, 'D>)
     =
     member val UserDomain = userDomain
 
-    member _.Return x = x
-    member _.Bind (m, f) = f m
+    member _.Yield x = x
     member _.Delay f = f
-    member _.Run f = f()
+    member _.Bind (DomainRunner r, f) = fun s -> r s |> f
+    member _.Return x = DomainRunner <| fun s -> x, s
+    member _.Run f =
+        fun s ->
+            let (DomainRunner r) = f()
+            let (_, s') = r s
+            s'
+
