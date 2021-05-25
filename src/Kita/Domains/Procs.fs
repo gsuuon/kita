@@ -16,14 +16,16 @@ type ProcsBlock<'U>(userDomain)
     [<CustomOperation("proc", MaintainsVariableSpaceUsingBind=true)>]
     member inline this.Proc
         (
-            ctx,
+            DomainRunner runCtx,
                 [<ProjectionParameter>]
             getProc
         ) =
-        fun s ->
+        DomainRunner <| fun s ->
+            let (ctx, s') = runCtx s
             let proc = getProc ctx
 
-            s
+            ctx,
+            s'
             |> UserDomain.update<'P, 'U, ProcState>
                 this.UserDomain
                 (ProcState.addProc proc)
