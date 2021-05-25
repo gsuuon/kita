@@ -4,6 +4,7 @@ open Kita.Compile
 let mutable root = Unchecked.defaultof<AttachedBlock>
 
 let sayLaunched = printfn "Launched %s"
+let noop = fun () -> ()
 
 type AProvider() =
     interface Provider with
@@ -47,14 +48,15 @@ module RestrictedProviderScenario =
         [<CustomOperation("proc", MaintainsVariableSpaceUsingBind=true)>]
         member inline this.Proc
             (
-                ctx,
-                    [<ProjectionParameter>]
-                getProc
+                DomainRunner runCtx,
+                [<ProjectionParameter>] getProc
             ) =
-            fun s ->
+            DomainRunner <| fun s ->
+                let (ctx, s') = runCtx s
                 let proc = getProc ctx
 
-                s
+                ctx,
+                s'
                 |> UserDomain.update<AProvider, 'U, 'D>
                     // Use the provider type parameter to restrict this custom op to AProvider
                     this.UserDomain
@@ -81,7 +83,7 @@ module RestrictedProviderScenario =
             let! x = SomeResource()
 
             do! restrictedToAProvider {
-                proc (fun () -> ())
+                proc noop
             }
 
             return ()
@@ -91,10 +93,19 @@ module NestScenario =
     open Kita.Domains
     open Kita.Domains.Routes
     
-    type AppState = { routeState : RouteState }
+    type AppState =
+        { routeState : RouteState }
+        static member Empty =
+            { routeState = RouteState.Empty }
 
     let inline block name =
         Block<_, AppState>(name)
+
+    let routes =
+        RoutesBlock<AppState>
+            { new UserDomain<_,_> with
+                member _.get s = s.routeState
+                member _.set s rs = { s with routeState = rs } }
 
     let blockA : BlockRunner<AProvider, AppState> =
         block "blockA" {
@@ -103,9 +114,14 @@ module NestScenario =
             return ()
         }
 
-    let blockB =
+    let blockB : BlockRunner<BProvider, AppState> =
         block "blockB" {
-            let! _x = SomeResource()
+            do! routes {
+                let x = "hello"
+                let y = "hey"
+                post x noop
+                post y noop
+            }
             return ()
         }
 
