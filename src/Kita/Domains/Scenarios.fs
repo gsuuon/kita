@@ -36,12 +36,14 @@ module JustRoutesScenario =
     let routesBlock name =
         Block<_, RoutesBlockState> name
 
+
+    let noop = fun () -> ()
     let blockA =
         routesBlock "A" {
-            let! _x = AResourceBuilder()
-
             do! routes {
-                route "hey" (fun () -> ())
+                route "delete" "hello" noop
+                post "hi" noop
+                post "hey" noop
             }
 
             return ()
@@ -75,14 +77,12 @@ module RoutesAndProcScenario =
 
     let blockA =
         routeAndProcBlock "A" {
-            let! _x = AResourceBuilder()
-
             do! routes {
-                route "hey" (fun () -> ())
+                route "get" "hey" noop
             }
 
             do! procs {
-                proc (fun () -> ())
+                proc noop
             }
 
             return ()
