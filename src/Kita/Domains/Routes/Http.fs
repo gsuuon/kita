@@ -34,24 +34,13 @@ type ResponseAdapter<'T> = RawResponse -> Response<'T>
 type HandlerAdapter<'T, 'R> =
     Handler<'T, 'R> -> RequestAdapter<'T> -> ResponseAdapter<'T> -> RawHandler
 
-type MethodHandler =
-    { route : string
-      method : string
-      handler : RawHandler }
-
 module Helpers =
     let asyncReturn x = async { return x }
     let konst x _ = x
 
     let ok body : RawResponse = { status = OK; body = body }
 
-    let asHandler method handler = fun route ->
-        { route = route
-          handler = handler
-          method = method }
-
-    let get = asHandler "get"
-    let post = asHandler "post"
-
     let canonMethod (methodString: string) =
         methodString.ToLower()
+
+    let returnOk : RawHandler = ok "OK" |> asyncReturn |> konst

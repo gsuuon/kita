@@ -38,12 +38,13 @@ module JustRoutesScenario =
 
 
     let noop = fun () -> ()
+    let ok = Http.Helpers.returnOk
     let blockA =
         routesBlock "A" {
             do! routes {
-                route "delete" "hello" noop
-                post "hi" noop
-                post "hey" noop
+                route "delete" "hello" ok
+                post "hi" ok
+                post "hey" ok
             }
 
             return ()
@@ -78,7 +79,7 @@ module RoutesAndProcScenario =
     let blockA =
         routeAndProcBlock "A" {
             do! routes {
-                route "get" "hey" noop
+                route "get" "hey" ok
             }
 
             do! procs {

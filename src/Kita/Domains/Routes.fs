@@ -2,38 +2,35 @@ namespace Kita.Domains.Routes
 
 open Kita.Core
 open Kita.Domains
+open Kita.Domains.Routes.Http
 
-type RouteHandler = unit -> unit
+type RouteAddress =
+    { path : string
+      method : string }
+
+type RouteHandler = RawHandler
 type RouteState =
-    { routes : Map<string * string, RouteHandler> }
+    { routes : Map<RouteAddress, RawHandler> }
     static member Empty =
         { routes = Map.empty }
-    // key is method * route
 
 module private Helper =
     let canonMethod (httpMethodString: string) =
         httpMethodString.ToLower()
 
 module RouteState =
-    let addRoute route handler (routeState: RouteState) =
+    let addRoute routeAddress handler (routeState: RouteState) =
         { routeState with
-            routes = Map.add route handler routeState.routes }
-
-type NewRoute =
-    { route : string
-      methd : string
-      handler : RouteHandler }
+            routes = Map.add routeAddress handler routeState.routes }
 
 type RoutesBlock<'U>(userDomain)
     =
     inherit DomainBuilder<'U, RouteState>(userDomain)
 
-    member this.AddRoute newRoute s =
+    member this.AddRoute routeAddress routeHandler s =
         s |> UserDomain.update<'P, 'U, RouteState>
             this.UserDomain
-            (RouteState.addRoute
-                (newRoute.methd, newRoute.route)
-                newRoute.handler)
+            (RouteState.addRoute routeAddress routeHandler)
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
     member this.Route
@@ -48,9 +45,9 @@ type RoutesBlock<'U>(userDomain)
 
             ctx,
             s |> this.AddRoute
-                  { route = getRoute ctx
-                    methd = getMethod ctx
-                    handler = getHandler ctx }
+                  { path = getRoute ctx
+                    method = getMethod ctx }
+                    (getHandler ctx)
 
     [<CustomOperation("post", MaintainsVariableSpaceUsingBind=true)>]
     member this.Post
@@ -64,6 +61,6 @@ type RoutesBlock<'U>(userDomain)
 
             ctx,
             s |> this.AddRoute
-              { route = getRoute ctx
-                methd = "post"
-                handler = getHandler ctx }
+                  { path = getRoute ctx
+                    method = "post" }
+                    (getHandler ctx)
