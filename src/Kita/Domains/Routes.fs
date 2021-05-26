@@ -33,12 +33,13 @@ module private RoutesBlock =
 
         bindState |> updateUserDomain
 
-    let addHandlerMethod
+    let addHandlerMethod<'P, 'U, 'a when 'P :> Provider>
         userDomain
         (DomainRunner runCtx)
         getMethod
         getPath
         getHandler
+        : DomainRunner<'P,'U,'a>
         =
         DomainRunner <| fun s ->
             let (ctx, s) = runCtx s
@@ -54,7 +55,7 @@ type RoutesBlock<'U>(userDomain)
     =
     inherit DomainBuilder<'U, RouteState>(userDomain)
 
-    let addHandler = addHandlerMethod userDomain
+    let addHandler x = addHandlerMethod userDomain x
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
     member _.Route
