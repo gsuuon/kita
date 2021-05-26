@@ -1,6 +1,7 @@
 namespace Kita.Domains.Routes
 
 open Kita.Core
+open Kita.Utility
 open Kita.Domains
 open Kita.Domains.Routes.Http
 
@@ -23,44 +24,62 @@ module RouteState =
         { routeState with
             routes = Map.add routeAddress handler routeState.routes }
 
+[<AutoOpen>]
+module private RoutesBlock =
+    let addRoute userDomain routeAddress handler bindState =
+        let updater = RouteState.addRoute routeAddress handler
+        let updateUserDomain =
+            UserDomain.update<'P, 'U, RouteState> userDomain updater
+
+        bindState |> updateUserDomain
+
+    let addHandlerMethod
+        userDomain
+        (DomainRunner runCtx)
+        getMethod
+        getPath
+        getHandler
+        =
+        DomainRunner <| fun s ->
+            let (ctx, s) = runCtx s
+
+            let routeAddress =
+                { path = getPath ctx
+                  method = getMethod ctx }
+            let handler = getHandler ctx
+
+            ctx, s |> addRoute userDomain routeAddress handler
+        
 type RoutesBlock<'U>(userDomain)
     =
     inherit DomainBuilder<'U, RouteState>(userDomain)
 
-    member this.AddRoute routeAddress routeHandler s =
-        s |> UserDomain.update<'P, 'U, RouteState>
-            this.UserDomain
-            (RouteState.addRoute routeAddress routeHandler)
+    let addHandler = addHandlerMethod userDomain
 
     [<CustomOperation("route", MaintainsVariableSpaceUsingBind=true)>]
-    member this.Route
+    member _.Route
         (
-            DomainRunner runCtx,
+            rCtx,
             [<ProjectionParameter>] getMethod,
-            [<ProjectionParameter>] getRoute,
+            [<ProjectionParameter>] getPath,
             [<ProjectionParameter>] getHandler
         ) =
-        DomainRunner <| fun s ->
-            let (ctx, s) = runCtx s
-
-            ctx,
-            s |> this.AddRoute
-                  { path = getRoute ctx
-                    method = getMethod ctx }
-                    (getHandler ctx)
+        addHandler rCtx getMethod getPath getHandler
 
     [<CustomOperation("post", MaintainsVariableSpaceUsingBind=true)>]
     member this.Post
         (
-            DomainRunner runCtx,
-            [<ProjectionParameter>] getRoute,
+            rCtx,
+            [<ProjectionParameter>] getPath,
             [<ProjectionParameter>] getHandler
         ) =
-        DomainRunner <| fun s ->
-            let (ctx, s) = runCtx s
+        addHandler rCtx (konst "post") getPath getHandler
 
-            ctx,
-            s |> this.AddRoute
-                  { path = getRoute ctx
-                    method = "post" }
-                    (getHandler ctx)
+    [<CustomOperation("get", MaintainsVariableSpaceUsingBind=true)>]
+    member this.Get
+        (
+            rCtx,
+            [<ProjectionParameter>] getPath,
+            [<ProjectionParameter>] getHandler
+        ) =
+        addHandler rCtx (konst "get") getPath getHandler
