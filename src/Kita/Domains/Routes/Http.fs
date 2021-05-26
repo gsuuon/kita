@@ -1,5 +1,6 @@
 namespace Kita.Domains.Routes.Http
 
+open Kita.Utility
 open System.Collections.Generic
 // This is all placeholder stuff, will probably replace with existing library
 
@@ -35,9 +36,6 @@ type HandlerAdapter<'T, 'R> =
     Handler<'T, 'R> -> RequestAdapter<'T> -> ResponseAdapter<'T> -> RawHandler
 
 module Helpers =
-    let asyncReturn x = async { return x }
-    let konst x _ = x
-
     let ok body : RawResponse = { status = OK; body = body }
 
     let canonMethod (methodString: string) =

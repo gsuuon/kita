@@ -4,6 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Utility.fs" />
     <Compile Include="Core/Block.fs" />
     <Compile Include="Domains/DomainBuilder.fs" />
     <Compile Include="Domains/Routes/Http.fs" />
