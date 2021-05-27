@@ -85,7 +85,6 @@ type RoutesBlock<'U>(userDomain)
         ) =
         addHandler rCtx (konst "get") getPath getHandler
 
-
 module Operation =
     type ScopedLauncher () =
         let mutable routes = Map.empty

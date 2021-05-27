@@ -2,6 +2,10 @@ module GiraffePrototype.Program
 
 open System.IO
 open Kita.Core
+open Kita.Domains
+open Kita.Domains.Routes
+open Kita.Domains.Routes.Http
+open Kita.Domains.Routes.Http.Helpers
 
 module Server =
     open System.Threading.Tasks
@@ -12,7 +16,7 @@ module Server =
     open Microsoft.Extensions.DependencyInjection
     open System.Buffers
     open FSharp.Control.Tasks
-    open Kita.Core.Http
+
     open Giraffe
 
     let wrapHandler (handler: RawHandler) = // RawHandler to Giraffe handler
@@ -85,28 +89,28 @@ module Server =
                 return! next ctx
             }
         
-    let handlersToApp (routeHandlers: MethodHandler list) =
+    let routeStateToApp (routeState: RouteState) =
         let canonPath (path: string) =
             if not (path.StartsWith "/") then
                 "/" + path
             else
                 path
 
-        let routeAndWrap path handler =
-            routeCi (canonPath path)
+        let routeAndWrap routeAddress handler =
+            let verb =
+                match routeAddress.method with
+                | "post" -> POST
+                | "get" -> GET
+                | x -> failwithf "Unknown method: %s" x
+
+            routeCi (canonPath routeAddress.path)
             >=> wrapHandler handler
+            >=> verb
 
-        routeHandlers
-        |> List.map
-            (fun mh ->
-                let verb =
-                    match mh.method with
-                    | "post" -> POST
-                    | "get" -> GET
-                    | x -> failwithf "Unknown method: %s" x
-
-                verb >=> routeAndWrap mh.route mh.handler
-            )
+        routeState.routes
+        |> Map.map routeAndWrap
+        |> Map.toList
+        |> List.map snd
         |> choose
 
     let configureApp webApp (app: IApplicationBuilder) =
@@ -115,12 +119,12 @@ module Server =
     let configureServices (services: IServiceCollection) =
         services.AddGiraffe() |> ignore
 
-    let start handlers =
+    let start routeState =
         Host.CreateDefaultBuilder()
             .ConfigureWebHostDefaults(
                 fun webHostBuilder ->
                     webHostBuilder
-                        .Configure(handlers |> handlersToApp |> configureApp)
+                        .Configure(routeState |> routeStateToApp |> configureApp)
                         .ConfigureServices(configureServices)
                         |> ignore
                 )
@@ -128,32 +132,53 @@ module Server =
             .Run()
 
 module App =
-    open Kita.Core.Infra
-    open Kita.Core.Http
-    open Kita.Core.Http.Helpers
+    open Kita.Core
+    open Kita.Utility
     open Kita.Providers
 
-    let local = infra'<Local>
+    type AppState =
+        { routeState : RouteState }
+        static member Empty = { routeState = RouteState.Empty }
 
+    [<AutoOpen>]
+    module private AppState =
+        let ``.routeState`` s = s.routeState
+        let ``|.routeState`` rs s = { s with routeState = rs }
+
+    let local name = Block<_, AppState> name
+    let routes =
+        RoutesBlock<AppState>
+            { new UserDomain<_,_> with
+                member _.get s = s.routeState
+                member _.set s rs = { s with routeState = rs } }
+
+    let retOk = Kita.Domains.Routes.Http.Helpers.returnOk
     let localBlock =
         local "testApp" {
-            route "hello" [
-                ok "Hows it going" |> asyncReturn |> konst |> get
-            ]
-            route "/hi" [
-                ok "Hi there" |> asyncReturn |> konst |> get
-            ]
+            do! routes {
+                get "hello" (ok "Hows it going" |> asyncReturn |> konst)
+                get "/hi" (ok "Hi there" |> asyncReturn |> konst)
+            }
+
+            return ()
         }
 
-    let localApp = localBlock.Attach (Managed.empty())
+    let localApp = localBlock |> Operation.attach (Local())
 
-open Kita.Core.Managed
+    let launch withRouteState =
+        let scopedLauncher = Routes.Operation.ScopedLauncher()
+
+        localApp
+        |> Operation.launchAndRun
+            (``.routeState`` >> scopedLauncher.Launch)
+
+        withRouteState scopedLauncher.RouteState
+
 
 [<EntryPoint>]
 let main _argv =
-    Server.start App.localApp.handlers
+    let x = App.localApp
 
-    // managed contains route handlers with bound references
-    // resources
+    App.launch Server.start
 
     0
