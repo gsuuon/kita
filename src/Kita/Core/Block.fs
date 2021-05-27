@@ -10,24 +10,25 @@ type CloudResource = interface end
 type ResourceBuilder<'P, 'A when 'P :> Provider and 'A :> CloudResource> =
     abstract Build : 'P -> 'A
 
-type Managed =
+type Managed<'U> =
     { resources : CloudResource list
-      nested : Map<string, AttachedBlock> }
+      nested : Map<string, AttachedBlock<'U>> }
     static member Empty =
         { resources = []
           nested = Map.empty }
 
-and AttachedBlock =
+and AttachedBlock<'U> =
     { name : string
-      managed : Managed
-      launch : unit -> unit
+      userState : 'U
+      managed : Managed<'U>
+      launch : ('U -> unit) -> unit
       run : unit -> unit
       path : string list }
 
 type BlockBindState<'P, 'U when 'P :> Provider> =
     { provider : 'P
       user : 'U
-      managed : Managed }
+      managed : Managed<'U> }
 type Runner<'P, 'U, 'result when 'P :> Provider> =
     Runner of (BlockBindState<'P, 'U> -> 'result * BlockBindState<'P, 'U>)
 
@@ -38,12 +39,15 @@ module BlockBindState =
     let inline create< ^u, ^p when 'u : (static member Empty : 'u)
                                and 'p :> Provider >
         (provider: 'p)
+        : BlockBindState<'p, 'u>
         =
         let user = ( ^u : (static member Empty : ^u) () )
 
         { provider = provider
           user = user
-          managed = Managed.Empty }
+          managed =
+            { resources = List.empty
+              nested = Map.empty } }
 
     let updateManaged updater state : BlockBindState<_, _> =
         { state with managed = updater state.managed }
@@ -69,12 +73,12 @@ module BlockBindState =
 
     let getResources = Runner (fun s -> s.managed.resources, s)
 
-type BlockRunner<'P, 'UserState when 'P :> Provider> =
-    BlockBindState<'P, 'UserState> -> AttachedBlock
+type BlockRunner<'P, 'U when 'P :> Provider> =
+    BlockBindState<'P, 'U> -> AttachedBlock<'U>
 
 module AttachedBlock =
-    let getNestedByPath (root: AttachedBlock) pathsAll =
-        let rec getNested pathsLeft (current: AttachedBlock) =
+    let getNestedByPath (root: AttachedBlock<_>) pathsAll =
+        let rec getNested pathsLeft (current: AttachedBlock<_>) =
             match pathsLeft with
             | [] -> current
             | head::rest ->
@@ -100,7 +104,7 @@ type PublicBlock<'P>(name: string) =
     member _.Name = name
 
 open BlockBindState
-type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
+type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
     inherit PublicBlock<'Provider>(name)
 
     member inline _.Return (x) = Runner.ret x
@@ -119,13 +123,16 @@ type Block< ^Provider, 'U when 'Provider :> Provider>(name: string) =
 
             { name = block.Name
               managed = managed
-              launch = fun () ->
+              userState = attached.user
+              launch = fun withAppState ->
+                printfn "Launching block: %s" block.Name
                 attached.provider.Launch()
+                withAppState attached.user
 
                 managed.nested
                 |> Map.iter
                     (fun name nestedAttached ->
-                        nestedAttached.launch())
+                        nestedAttached.launch withAppState)
 
               run = fun () ->
                 attached.provider.Run()
@@ -209,6 +216,6 @@ module Operation =
     let inline attach provider block =
         create provider |> block
 
-    let launchAndRun (attachedBlock: AttachedBlock) =
-        attachedBlock.launch()
+    let launchAndRun launcher (attachedBlock: AttachedBlock<_>) =
+        attachedBlock.launch launcher
         attachedBlock.run()

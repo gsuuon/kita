@@ -22,9 +22,10 @@ module ScenarioCommon =
 module JustRoutesScenario =
     open ScenarioCommon
 
-    type RoutesBlockState = {
-        routeState : RouteState
-    }
+    type RoutesBlockState =
+        { routeState : RouteState }
+        static member Empty =
+            { routeState = RouteState.Empty }
 
     let routes =
         RoutesBlock<RoutesBlockState>
@@ -33,22 +34,23 @@ module JustRoutesScenario =
                 member _.set s rs = { s with routeState = rs }
             }
 
-    let routesBlock name =
-        Block<_, RoutesBlockState> name
-
+    let inline routesBlock< ^a when 'a :> Provider> name =
+        Block<'a, RoutesBlockState> name
 
     let noop = fun () -> ()
     let ok = Http.Helpers.returnOk
+
     let blockA =
         routesBlock "A" {
             do! routes {
                 route "delete" "hello" ok
-                post "hi" ok
-                post "hey" ok
+                get "hey" ok
             }
 
             return ()
         }
+
+    let launched = blockA |> Operation.attach (AProvider())
 
 module RoutesAndProcScenario =
     open ScenarioCommon
