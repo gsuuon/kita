@@ -107,11 +107,13 @@ module NestScenario =
     let inline block name =
         Block<_, AppState>(name)
 
+    let routesDomain = 
+        { new UserDomain<_,_> with
+            member _.get s = ``.routeState`` s
+            member _.set s rs = ``|routeState`` rs s }
+
     let routes =
-        RoutesBlock<AppState>
-            { new UserDomain<_,_> with
-                member _.get s = ``.routeState`` s
-                member _.set s rs = ``|routeState`` rs s }
+        RoutesBlock<AppState> routesDomain
 
     let blockA : BlockRunner<AProvider, AppState> =
         block "blockA" {
@@ -152,21 +154,19 @@ module NestScenario =
             child blockC
         }
 
-    let aProvider = AProvider()
+    open Kita.Domains
 
-    let app = main |> Operation.attach aProvider
-
-    let launch () =
-        let scopedRoutes = Routes.Operation.ScopedLauncher()
-
-        app
-        |> Operation.launchAndRun
-            (``.routeState`` >> scopedRoutes.Launch)
-
-        scopedRoutes
-
+    let launch withRoutes =
+        main
+        |> Operation.attach (AProvider())
+        |> Routes.Operation.launchRoutes routesDomain withRoutes
+    
 [<EntryPoint>]
 let main _argv =
-    let knownRoutes = NestScenario.launch()
-    printfn "Known routes: %A" knownRoutes.RouteState
+    let _routes =
+        NestScenario.launch
+        <| fun routeState ->
+            printfn "Known routes: %A" routeState
+            routeState
+
     0

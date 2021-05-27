@@ -86,13 +86,24 @@ type RoutesBlock<'U>(userDomain)
         addHandler rCtx (konst "get") getPath getHandler
 
 module Operation =
-    type ScopedLauncher () =
+    type RoutesCollector() =
         let mutable routes = Map.empty
-
         let addRoute routeAddress handler =
             routes <- Map.add routeAddress handler routes
 
-        member _.Launch (routeState: RouteState) =
+        member _.Collect (routeState: RouteState) =
                 routeState.routes |> Map.iter addRoute
 
         member _.RouteState = { routes = routes }
+
+    type RoutesLauncher<'U, 'a>(app, routesDomain: UserDomain<'U, RouteState>) =
+        member _.Launch(withRouteState: RouteState -> 'a) =
+            let routesCollector = RoutesCollector()
+
+            app.launch (routesDomain.get >> routesCollector.Collect)
+
+            withRouteState routesCollector.RouteState
+
+
+    let launchRoutes routesDomain withRoutes app =
+        RoutesLauncher(app, routesDomain).Launch withRoutes
