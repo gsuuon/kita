@@ -96,14 +96,22 @@ module NestScenario =
         static member Empty =
             { routeState = RouteState.Empty }
 
+    [<AutoOpen>]
+    module private AppState =
+        let ``.routeState`` (appState: AppState) =
+            appState.routeState
+
+        let ``|routeState`` routeState appState =
+            { appState with routeState = routeState }
+
     let inline block name =
         Block<_, AppState>(name)
 
     let routes =
         RoutesBlock<AppState>
             { new UserDomain<_,_> with
-                member _.get s = s.routeState
-                member _.set s rs = { s with routeState = rs } }
+                member _.get s = ``.routeState`` s
+                member _.set s rs = ``|routeState`` rs s }
 
     let blockA : BlockRunner<AProvider, AppState> =
         block "blockA" {
@@ -149,25 +157,16 @@ module NestScenario =
     let app = main |> Operation.attach aProvider
 
     let launch () =
-        let routes =
-            let mutable knownRoutes = Map.empty
-            {|  add = fun routeAddress handler ->
-                        knownRoutes <-
-                            Map.add routeAddress handler knownRoutes
-                show = fun () -> printfn "Known routes: %A" knownRoutes
-            |}
+        let scopedRoutes = Routes.Operation.ScopedLauncher()
 
-        let launchRoutes (routeState: RouteState) =
-            routeState.routes
-            |> Map.iter routes.add
+        app
+        |> Operation.launchAndRun
+            (``.routeState`` >> scopedRoutes.Launch)
 
-        app |> Operation.launchAndRun ( (fun s -> s.routeState) >> launchRoutes)
-
-        routes
-        
+        scopedRoutes
 
 [<EntryPoint>]
 let main _argv =
     let knownRoutes = NestScenario.launch()
-    knownRoutes.show()
+    printfn "Known routes: %A" knownRoutes.RouteState
     0

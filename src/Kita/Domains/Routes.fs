@@ -84,3 +84,16 @@ type RoutesBlock<'U>(userDomain)
             [<ProjectionParameter>] getHandler
         ) =
         addHandler rCtx (konst "get") getPath getHandler
+
+
+module Operation =
+    type ScopedLauncher () =
+        let mutable routes = Map.empty
+
+        let addRoute routeAddress handler =
+            routes <- Map.add routeAddress handler routes
+
+        member _.Launch (routeState: RouteState) =
+                routeState.routes |> Map.iter addRoute
+
+        member _.RouteState = { routes = routes }
