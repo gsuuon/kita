@@ -14,62 +14,32 @@ module Proxy =
     open Microsoft.Azure.Functions.Worker.Pipeline
 
     open Kita.Core
-    open Kita.Core.Http
-    open Kita.Core.Http.Helpers
+    open Kita.Domains
+    open Kita.Domains.Routes
+    open Kita.Domains.Routes.Http
 
     let connectionString =
         Environment.GetEnvironmentVariable "Kita_ConnectionString"
         // TODO this needs to be a generated name
 
-    let app =
-        let routes =
-            Managed.empty()
-            |> ProxyApp.AutoReplacedReference.app.Attach
-            |> fun managed ->
-                managed.Attach connectionString
-                // TODO I feel like this project should depend on AzureNative, and I can make the type explicit here
-                    // This depends on the replaced Kita_AssemblyReference
-
-                managed
-            |> fun managed ->
-                managed.handlers
-                |> Seq.fold
-                    (fun (routes: Dictionary<_,Dictionary<_,_>>) mh ->
-                        match routes.TryGetValue mh.route with
-                        | true, routeHandlers ->
-                            routeHandlers.[mh.method] <- mh.handler
-
-                        | false, _ ->
-                            let routeHandlers = Dictionary()
-                            routeHandlers.[mh.method] <- mh.handler
-
-                            routes.[mh.route] <- routeHandlers
-
-                        routes
-                    )
-                    (Dictionary())
-                :> IReadOnlyDictionary<_,_>
-
+    let handleRoute log =
         let notFoundHandler req : Async<RawResponse> =
             async { return { body = "Not found :("; status = NOTFOUND } }
 
-        let is (a: string) (b: string) =
-            a.ToLower() = b.ToLower()
-
-        fun route methd log ->
-            log (sprintf "Matching route: %s & method: %s" route methd)
-
-            match routes.TryGetValue route with
-            | true, handlers ->
-                match handlers.TryGetValue (canonMethod methd) with
-                | true, handler -> handler
-                | false, _ ->
-                    log "Route doesn't handle method"
+        let rootHandler =
+            ProxyApp.AutoReplacedReference.app.Launch
+            <| fun routeState ->
+                fun routeAddress ->
+                match routeState.routes.TryFind routeAddress with
+                | Some handler ->
+                    handler
+                | None ->
+                    log <| sprintf "Unknown route: %A" routeAddress
                     notFoundHandler
 
-            | false, _ ->
-                log "No such route"
-                notFoundHandler
+        ProxyApp.AutoReplacedReference.app.Run()
+
+        rootHandler
 
     [<Function("Proxy")>]
     let run
@@ -87,7 +57,11 @@ module Proxy =
 
         log (sprintf "Proxy handling route: %s" route)
 
-        let handler = app route req.Method log
+        let routeAddress =
+            { path = route
+              method = Helpers.canonMethod req.Method }
+
+        let handler = handleRoute log routeAddress
 
         task {
             let! rawRequest = ProxyApp.Adapt.inRequest req
