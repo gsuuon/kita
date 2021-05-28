@@ -9,7 +9,8 @@ open System.Threading.Tasks
 open Microsoft.Azure.Functions.Worker.Http
 open FSharp.Control.Tasks
 
-open Kita.Core.Http
+open Kita.Domains.Routes
+open Kita.Domains.Routes.Http
 
 let inRequest (req: HttpRequestData) = task {
     let pr = PipeReader.Create(req.Body)
