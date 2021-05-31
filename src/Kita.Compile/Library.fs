@@ -70,3 +70,24 @@ module Reflect =
             $"{canonTypeName propInfo.DeclaringType.FullName}.{propInfo.Name}"
 
         accessor
+
+    // TODO re-evaluate how cross-project interaction works
+    type RootBlockAttribute(rootName: string) =
+        inherit Attribute()
+        member val RootName = rootName
+
+    let findRootBlockFor rootName =
+        Assembly.GetCallingAssembly().GetTypes()
+        |> Array.find (fun typ ->
+
+            typ.GetCustomAttributes()
+            |> Seq.exists (fun attr ->
+
+                if attr.GetType() = typeof<RootBlockAttribute> then
+                    let rootBlock = attr :?> RootBlockAttribute
+
+                    rootBlock.RootName = rootName
+                else
+                    false
+
+                ) )

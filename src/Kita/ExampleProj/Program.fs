@@ -31,10 +31,12 @@ type SomeResourceFrontend<'T>(v: 'T) =
 type SomeResource<'T>(v) =
     interface ResourceBuilder<AProvider, SomeResourceFrontend<'T>> with
         member _.Build _x =
+            printfn "SomeResource AProvider: %A" v
             SomeResourceFrontend(v)
 
     interface ResourceBuilder<BProvider, SomeResourceFrontend<'T>> with
         member _.Build _x =
+            printfn "SomeResource BProvider: %A" v
             SomeResourceFrontend(v)
 
 module RestrictedProviderScenario =
@@ -157,9 +159,10 @@ module NestScenario =
     open Kita.Domains
 
     let launch withRoutes =
-        main
-        |> Operation.attach (AProvider())
-        |> Routes.Operation.launchRoutes routesDomain withRoutes
+        printfn "Starting attach"
+        let attached = main |> Operation.attach (AProvider())
+        printfn "Finished attach"
+        attached |> Routes.Operation.launchRoutes routesDomain withRoutes
     
 [<EntryPoint>]
 let main _argv =

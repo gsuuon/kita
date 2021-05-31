@@ -7,5 +7,10 @@
   <ItemGroup>
     <Compile Include="Library.fs" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="../Kita/Kita.fsproj" />
+  </ItemGroup>
+  
 
 </Project>
