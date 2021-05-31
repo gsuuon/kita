@@ -13,7 +13,7 @@ open Kita.Core
 
 open System.IO
 
-type AzureNative() =
+type AzureNative(appName, location) =
     let defaultLocation = "eastus"
 
     let mutable provisionRequests = []
@@ -25,10 +25,10 @@ type AzureNative() =
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 
-    member _.Generate(nestPath, conString) =
+    member _.Generate(conString) =
+        // TODO find the RootBlock attribute which contains this provider
         GenerateProject.generateFunctionsAppZip
             (Path.Join(__SOURCE_DIRECTORY__, "ProxyFunctionApp"))
-            nestPath
             conString
 
     member _.Deploy (conString, functionApp, generatedZip: byte[]) = task {
@@ -101,10 +101,6 @@ type AzureNative() =
         requestProvision <| Storage.createQueue qName
 
     interface Provider with
-        // FIXME how do I hide the type of location?
-        // typed location makes it hard to have 1 line change to switch
-        // vendor platform
-
         // FIXME enforce lowercase only
         // Same with queue names
         // azure most names must be lowercase i guess?
@@ -122,11 +118,11 @@ type AzureNative() =
         // Not sure how I would use this with zipdeploy?
         // Could be useful for local provider
 
-        member this.Launch (appName, location, nestPath) =
+        member this.Launch () =
             let work = task {
                 let! (conString, rgName, saName) = this.ProvisionGroup(appName, location)
                 let provisionWork = this.Provision(appName, conString, rgName, saName)
-                let zipProjectWork = this.Generate(nestPath, conString)
+                let zipProjectWork = this.Generate(conString)
                     // TODO contextualize the logs of each process
                     // logging channels
 

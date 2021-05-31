@@ -3,28 +3,14 @@ module AzureNativePrototype.Resource
 open FSharp.Control.Tasks
 open Azure.Storage.Queues
 
+open Kita.Core
 open Kita.Resources.Collections
 open Kita.Utility
 
 open AzureNativePrototype
 
-
-type Queue<'T>(?name: string) =
-    inherit CloudQueue<'T>()
-    let name = defaultArg name "defaultqname"
-        // FIXME generate name based on
-        // position + type + ownership hierarchy
-
-    let queueClient = Waiter<QueueClient>()
-    member _.Attach(provider: AzureNative) =
-        provider.RequestQueue(name)
-
-        async {
-            // Using waiter means I could attach after deploy
-            // Since the event is only fired when connection happens
-            let! conString = provider.WaitConnectionString.GetAsync
-            QueueClient(conString, name) |> queueClient.Set
-        } |> Async.Start
+type QueueF<'T>(queueClient: Waiter<QueueClient>, ?name: string) =
+    interface CloudResource
 
     member _.Enqueue item = async {
         let! client = queueClient.GetAsync
@@ -58,3 +44,23 @@ type Queue<'T>(?name: string) =
             rMsgs.Value
             |> Array.map (fun x -> x.MessageText)
             |> Array.toList }
+    
+
+type Queue<'T>(?name: string) =
+    let name = defaultArg name "defaultqname"
+        // FIXME generate name based on
+        // position + type + ownership hierarchy
+
+    interface ResourceBuilder<AzureNative, QueueF<'T>> with
+        member _.Build (provider: AzureNative) =
+            let queueClient = Waiter<QueueClient>()
+            provider.RequestQueue(name)
+
+            async {
+                // Using waiter means I could attach after deploy
+                // Since the event is only fired when connection happens
+                let! conString = provider.WaitConnectionString.GetAsync
+                QueueClient(conString, name) |> queueClient.Set
+            } |> Async.Start
+
+            QueueF(queueClient, name)
