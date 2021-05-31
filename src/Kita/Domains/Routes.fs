@@ -104,6 +104,5 @@ module Operation =
 
             withRouteState routesCollector.RouteState
 
-
     let launchRoutes routesDomain withRoutes app =
         RoutesLauncher(app, routesDomain).Launch withRoutes

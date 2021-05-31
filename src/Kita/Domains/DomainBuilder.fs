@@ -37,3 +37,5 @@ type DomainBuilder<'U, 'D>
             let (_, s') = r s
             s'
 
+type DomainLauncher<'Domain, 'T> =
+    abstract Launch : ('Domain -> 'T) -> 'T

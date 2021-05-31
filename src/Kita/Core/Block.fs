@@ -219,3 +219,4 @@ module Operation =
     let launchAndRun launcher (attachedBlock: AttachedBlock<_>) =
         attachedBlock.launch launcher
         attachedBlock.run()
+
