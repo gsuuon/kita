@@ -76,10 +76,19 @@ module Reflect =
         inherit Attribute()
         member val RootName = rootName
 
-    let findRootBlockFor rootName =
+    let findMethod eval =
         Assembly.GetCallingAssembly().GetTypes()
-        |> Array.find (fun typ ->
+        |> Array.pick (fun typ ->
 
+            typ.GetMethods()
+            |> Array.tryFind (fun mi -> eval mi) )
+
+    let findType eval = 
+        Assembly.GetCallingAssembly().GetTypes()
+        |> Array.tryFind (fun typ -> eval typ )
+        
+    let findRootBlockFor rootName =
+        findType <| fun typ -> 
             typ.GetCustomAttributes()
             |> Seq.exists (fun attr ->
 
@@ -90,4 +99,13 @@ module Reflect =
                 else
                     false
 
-                ) )
+                 )
+
+    let getCallString (mi: MethodInfo) =
+        if not mi.IsStatic then
+            failwith "Trying to generate a call string for a non-static method, but we're expecting a static method. An attribute may be misplaced."
+        let typ = mi.DeclaringType
+        if typ.IsGenericType then
+            failwith "Trying to generate a call string for a generic type's method. The method should be on a non-generic class"
+
+        typ.FullName + mi.Name
