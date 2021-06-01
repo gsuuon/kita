@@ -22,6 +22,8 @@ type AzureNative(appName, location) =
 
     let connectionString = Waiter<string>()
 
+    let mutable launched = false
+
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 
@@ -119,29 +121,33 @@ type AzureNative(appName, location) =
         // Could be useful for local provider
 
         member this.Launch () =
-            let work = task {
-                let! (conString, rgName, saName) = this.ProvisionGroup(appName, location)
-                let provisionWork = this.Provision(appName, conString, rgName, saName)
-                let zipProjectWork = this.Generate(conString)
-                    // TODO contextualize the logs of each process
-                    // logging channels
+            if not launched then
+                launched <- true
+                let work = task {
+                    let! (conString, rgName, saName) = this.ProvisionGroup(appName, location)
+                    let provisionWork = this.Provision(appName, conString, rgName, saName)
+                    let zipProjectWork = this.Generate(conString)
+                        // TODO contextualize the logs of each process
+                        // logging channels
 
-                let! (conString, functionApp) = provisionWork
-                let! zipProject = zipProjectWork
-                printfn "Generated zip project"
-                    // FIXME zip can fail if reference dlls are in use? (eg by an lsp server)
-                    // but we're only trying to copy
-                    // is there some way around this?
-                let! deployment = this.Deploy(conString, functionApp, zipProject)
-                do! functionApp.SyncTriggersAsync()
+                    let! (conString, functionApp) = provisionWork
+                    let! zipProject = zipProjectWork
+                    printfn "Generated zip project"
+                        // FIXME zip can fail if reference dlls are in use? (eg by an lsp server)
+                        // but we're only trying to copy
+                        // is there some way around this?
+                    let! deployment = this.Deploy(conString, functionApp, zipProject)
+                    do! functionApp.SyncTriggersAsync()
 
-                this.Attach conString
+                    this.Attach conString
 
-                printfn "Deployed app -- https://%s" functionApp.DefaultHostName
-                let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "proxyKey", null)
-                printfn "Key -- %s | %s" funKey.Name funKey.Value
+                    printfn "Deployed app -- https://%s" functionApp.DefaultHostName
+                    let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "proxyKey", null)
+                    printfn "Key -- %s | %s" funKey.Name funKey.Value
+                }
 
-                return managed
-            }
+                work.Wait()
 
-            work.Wait()
+        member _.Run () =
+            // TODO run
+            printfn "Run not implemented"

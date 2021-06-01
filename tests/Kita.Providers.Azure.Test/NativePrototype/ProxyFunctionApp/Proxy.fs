@@ -27,7 +27,7 @@ module Proxy =
             async { return { body = "Not found :("; status = NOTFOUND } }
 
         let rootHandler =
-            ProxyApp.AutoReplacedReference.app.Launch
+            ProxyApp.AutoReplacedReference.appLauncher
             <| fun routeState ->
                 fun routeAddress ->
                 match routeState.routes.TryFind routeAddress with
@@ -37,7 +37,8 @@ module Proxy =
                     log <| sprintf "Unknown route: %A" routeAddress
                     notFoundHandler
 
-        ProxyApp.AutoReplacedReference.app.Run()
+        (* ProxyApp.AutoReplacedReference.app.Run() *)
+        // TODO Do I need to call run?
 
         rootHandler
 

@@ -6,11 +6,7 @@ open Kita.Core
 open Kita.Domains
 open Kita.Domains.Routes
 
-module App = 
-    open Kita.Domains.Routes.Http
-    open Kita.Domains.Routes.Http.Helpers
-    open Kita.Compile
-
+module AppSpec =
     type AppState =
         { routeState : RouteState }
         static member Empty = { routeState = RouteState.Empty }
@@ -21,6 +17,12 @@ module App =
             member _.set s rs = { s with routeState = rs } }
 
     let routes = RoutesBlock<AppState> routesDomain
+
+module App = 
+    open AppSpec
+    open Kita.Domains.Routes.Http
+    open Kita.Domains.Routes.Http.Helpers
+    open Kita.Compile.Reflect
 
     let app =
         Block<AzureNative, AppState> "myaznativeapp" {
@@ -48,26 +50,29 @@ module App =
         }
     }
 
+module AppOp =
+    open AppSpec
+    open App
+    open Kita.Compile.Domains.Routes
+
     let deploy () =
         let provider = AzureNative("myaznativeapp", "eastus")
 
         app |> Operation.attach provider
 
-    [<RootBlock("main")>]
-    type AppLauncher<'T>() =
-        interface DomainLauncher<RouteState, 'T> with
-            member _.Launch withDomain =
-                let provider = AzureNative("myaznativeapp", "eastus")
+    [<RoutesEntrypoint("main")>]
+    let launchRouteState withDomain =
+        let provider = AzureNative("myaznativeapp", "eastus")
 
-                app
-                |> Operation.attach provider
-                |> Routes.Operation.launchRoutes routesDomain withDomain
+        app
+        |> Operation.attach provider
+        |> Routes.Operation.launchRoutes routesDomain withDomain
 
 [<EntryPoint>]
 let main argv =
     let managed =
         printfn "Deploying"
 
-        App.deploy()
+        AppOp.deploy()
 
     0 // return an integer exit code

@@ -9,6 +9,7 @@ open FSharp.Control.Tasks
 
 open Kita.Core
 open Kita.Compile
+open Kita.Compile.Domains.Routes
 open AzureNativePrototype
 
 [<AutoOpen>]
@@ -57,26 +58,27 @@ module Zipper =
         |> Array.map (fun line -> if find line then replace line else line)
         |> String.concat "\r"
         
-    let replaceAppReference nestedPath source (fileText: string) =
-        let targetAssign = "let app = "
+    let replaceAppReference (fileText: string) =
+        // TODO
+        // Find the type with rootblock attribute
+        // get fullname of type
+        // In proxy project:
+        // instantiate the replaced reference
+        // call interface method DomainLauncher<RouteState,_>.Launch
 
-        let accessor = Reflect.getStaticAccessPath source
-        let rootBlockAccessor = "" // TODO
-            // find the member with the rootblockattribute
-        let nestedPathAsString = nestedPath |> String.concat ", "
-        let attachedBlockAccessor =
-            sprintf "AttachedBlock.getNestedPath (%s) [%s]"
-                        rootBlockAccessor
-                        nestedPathAsString
+        let appLauncherMethod = Reflect.findRoutesEntry "main"
+        let appLauncherCallString = Reflect.getCallString appLauncherMethod
 
-        printfn "Replacing accessor with: %s" accessor
+        let targetAssign = "let appLauncher = "
+
+        printfn "Replacing appLauncher with: %s" appLauncherCallString
 
         findAndReplaceLine
         <| fun line -> line.Contains targetAssign
         <| fun line ->
             let indent = (line.Split "let").[0]
 
-            let res = indent + targetAssign + accessor
+            let res = indent + targetAssign + appLauncherCallString
             printfn "Replaced accessor with: %s" res
             res
         <| fileText
@@ -216,8 +218,6 @@ module Builder =
 
 let rec generateFunctionsAppZip
     (proxyAppPath: string)
-    referenceReplaceSource
-    nestPath
     conString
     = task {
 
@@ -229,7 +229,7 @@ let rec generateFunctionsAppZip
         <| proxyAppPath
         <| fun relativePath fileText ->
             if relativePath = "AutoReplacedReference.fs" then
-                replaceAppReference referenceReplaceSource fileText
+                replaceAppReference fileText
             else if relativePath.EndsWith ".fsproj" then
                 replaceProjectReference proxyAppPath fileText
             // TODO generate app-namespaced connection string env variable
@@ -271,7 +271,7 @@ let rec generateFunctionsAppZip
 
         match readKey 10000 with
         | Some 'r' ->
-            return! generateFunctionsAppZip proxyAppPath referenceReplaceSource conString
+            return! generateFunctionsAppZip proxyAppPath conString
         | None
         | Some 'a'
         | Some _ ->
