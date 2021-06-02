@@ -1,8 +1,16 @@
 namespace Kita.Core
 
 type Provider =
-        // Needs to be idempotent if many-to-one Block / Provider relationship
+    // Needs to be idempotent if many-to-one Block / Provider relationship
+    /// Provisions and deploys resources
+    /// Provider will have been attached to every block already
+    /// Called for every block this provider is attached to
     abstract member Launch : unit -> unit
+
+    /// Runs (activates and unblocks) resources
+    /// Should extract necessary information from environment (e.g. connection string)
+    /// Only called when running the block (not when launching)
+    /// Called for every block this provider is attached to
     abstract member Run : unit -> unit
 
 type CloudResource = interface end
@@ -22,7 +30,7 @@ and AttachedBlock<'U> =
       userState : 'U
       managed : Managed<'U>
       launch : ('U -> unit) -> unit
-      run : unit -> unit
+      run : ('U -> unit) -> unit
       path : string list }
 
 type BlockBindState<'P, 'U when 'P :> Provider> =
@@ -115,6 +123,13 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
     member inline block.Run (f) : BlockRunner<_, _> =
         let (Runner r) = f()
 
+        // To switch to Provider set launching, don't launch nested attachedblocks
+        // recurse nested attached blocks to build a set of all providers
+        // and just launch the set of providers
+        // This gets one launch per provider per block tree
+
+        // Update comment in Provider interface if no longer ran per block
+
         fun s ->
             let (_, attached : BlockBindState<'Provider,'U>) = r s
             let managed = attached.managed
@@ -134,14 +149,15 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
                     (fun name nestedAttached ->
                         nestedAttached.launch withAppState)
 
-              run = fun () ->
+              run = fun withAppState ->
                 attached.provider.Run()
+                withAppState attached.user
 
                 managed.nested
                 |> Map.iter
-                    (fun _name nestedAttached -> nestedAttached.run())
+                    (fun _name nestedAttached -> nestedAttached.run withAppState)
 
-              path = [] // FIXME actually do this
+              path = [] // FIXME Actually use this or remove
               }
 
     member inline _.Bind
