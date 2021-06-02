@@ -96,13 +96,24 @@ module Operation =
 
         member _.RouteState = { routes = routes }
 
-    type RoutesLauncher<'U, 'a>(app, routesDomain: UserDomain<'U, RouteState>) =
-        member _.Launch(withRouteState: RouteState -> 'a) =
-            let routesCollector = RoutesCollector()
+    let launchRoutes
+        (routesDomain: UserDomain<'U, RouteState>)
+        withRouteState
+        app
+        =
+        let routesCollector = RoutesCollector()
 
-            app.launch (routesDomain.get >> routesCollector.Collect)
+        app.launch (routesDomain.get >> routesCollector.Collect)
 
-            withRouteState routesCollector.RouteState
+        withRouteState routesCollector.RouteState
 
-    let launchRoutes routesDomain withRoutes app =
-        RoutesLauncher(app, routesDomain).Launch withRoutes
+    let runRoutes
+        (routesDomain: UserDomain<'U, RouteState>)
+        withRouteState
+        app
+        =
+        let routesCollector = RoutesCollector()
+
+        app.run (routesDomain.get >> routesCollector.Collect)
+
+        withRouteState routesCollector.RouteState
