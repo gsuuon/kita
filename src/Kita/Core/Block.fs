@@ -231,8 +231,3 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
 module Operation =
     let inline attach provider block =
         create provider |> block
-
-    let launchAndRun launcher (attachedBlock: AttachedBlock<_>) =
-        attachedBlock.launch launcher
-        attachedBlock.run()
-

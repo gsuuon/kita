@@ -164,16 +164,14 @@ module App =
         }
 
     let localApp = localBlock |> Operation.attach (Local())
+        // Provider doesn't really do anything in this example
 
     let launch withRouteState =
-        let scopedLauncher = Routes.Operation.ScopedLauncher()
+        let routesCollector = Routes.Operation.RoutesCollector()
 
-        localApp
-        |> Operation.launchAndRun
-            (``.routeState`` >> scopedLauncher.Launch)
+        localApp.run (``.routeState`` >> routesCollector.Collect)
 
-        withRouteState scopedLauncher.RouteState
-
+        withRouteState routesCollector.RouteState
 
 [<EntryPoint>]
 let main _argv =
