@@ -55,24 +55,24 @@ module AppOp =
     open App
     open Kita.Compile.Domains.Routes
 
-    let deploy () =
-        let provider = AzureNative("myaznativeapp", "eastus")
-
-        app |> Operation.attach provider
-
-    [<RoutesEntrypoint("main")>]
-    let launchRouteState withDomain =
+    let attachedApp = 
         let provider = AzureNative("myaznativeapp", "eastus")
 
         app
         |> Operation.attach provider
-        |> Routes.Operation.launchRoutes routesDomain withDomain
+
+    [<RoutesEntrypoint("main")>]
+    let runRouteState withDomain =
+        attachedApp |> Routes.Operation.runRoutes routesDomain withDomain
+
+    let launchRouteState withDomain =
+        attachedApp |> Routes.Operation.launchRoutes routesDomain withDomain
 
 [<EntryPoint>]
 let main argv =
-    let managed =
-        printfn "Deploying"
+    // NOTE this needs to launch (provision + deploy)
+    printfn "Deploying"
 
-        AppOp.deploy()
+    AppOp.launchRouteState (fun routes -> printfn "App launched routes: %A" routes)
 
     0 // return an integer exit code
