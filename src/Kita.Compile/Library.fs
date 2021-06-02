@@ -77,7 +77,7 @@ module Reflect =
         member val RootName = rootName
 
     let findMethod eval =
-        Assembly.GetCallingAssembly().GetTypes()
+        Assembly.GetEntryAssembly().GetTypes()
         |> Array.pick (fun typ ->
 
             typ.GetMethods()
@@ -108,4 +108,6 @@ module Reflect =
         if typ.IsGenericType then
             failwith "Trying to generate a call string for a generic type's method. The method should be on a non-generic class"
 
-        typ.FullName + mi.Name
+        typ.FullName
+        |> fun s -> s.Replace("+", ".")
+        |> fun typName -> typName + "." + mi.Name
