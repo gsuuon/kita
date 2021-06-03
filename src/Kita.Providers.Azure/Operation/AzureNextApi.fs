@@ -1,4 +1,4 @@
-module AzureNativePrototype.AzureNextApi
+namespace Kita.Providers.Azure.AzureNextApi
 // Management
 
 // API Reference

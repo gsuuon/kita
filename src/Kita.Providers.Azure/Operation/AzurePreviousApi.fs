@@ -1,9 +1,10 @@
-module AzureNativePrototype.AzurePreviousApi
+namespace Kita.Providers.Azure.AzurePreviousApi
 
 // API Reference
 // https://docs.microsoft.com/en-us/dotnet/api/overview/azure/?view=azure-dotnet
 
 open System
+open FSharp.Control.Tasks
 
 open Microsoft.Azure.Management.AppService.Fluent
 open Microsoft.Azure.Management
@@ -15,7 +16,7 @@ open Microsoft.Azure.Management.ResourceManager.Fluent
 open Microsoft.Azure.Management.ResourceManager.Fluent.Core
 open Microsoft.Azure.Management.ResourceManager.Fluent.Authentication
 
-open FSharp.Control.Tasks
+open Kita.Providers.Azure
 
 [<RequireQualifiedAccess>]
 [<AutoOpen>]

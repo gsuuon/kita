@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Kita.Providers/Kita.Providers.fsproj" />
+    <ProjectReference Include="../Kita/Kita.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collections/CloudMap.fs" />

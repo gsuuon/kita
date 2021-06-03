@@ -1,8 +1,16 @@
-﻿namespace Kita.Providers
+﻿namespace Kita.Providers.Azure
+
+open System.IO
+open FSharp.Control.Tasks
 
 open Kita.Core
+open Kita.Utility
+open Kita.Providers.Azure
+open Kita.Providers.Azure.Client
+open Kita.Providers.Azure.AzurePreviousApi
+open Kita.Providers.Azure.AzureNextApi
 
-type Azure() =
+type AzureProvider(appName, location) =
     let defaultLocation = "eastus"
 
     let mutable provisionRequests = []

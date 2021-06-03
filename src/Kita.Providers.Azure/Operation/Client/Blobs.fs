@@ -1,4 +1,4 @@
-namespace AzureNativePrototype.Client
+namespace Kita.Providers.Azure.Client
 
 open System.Threading.Tasks
 open System.IO
@@ -8,7 +8,7 @@ open Azure.Storage.Blobs
 open Azure.Storage.Blobs.Models
 open Azure.Storage.Sas
 
-open AzureNativePrototype.AzureNextApi.Utility
+open Kita.Providers.Azure.AzureNextApi.Utility
 
 type BlobPermission = BlobSasPermissions
 
