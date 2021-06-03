@@ -136,18 +136,18 @@ type AzureNative(appName, location) =
                         // FIXME zip can fail if reference dlls are in use? (eg by an lsp server)
                         // but we're only trying to copy
                         // is there some way around this?
+
                     let! deployment = this.Deploy(conString, functionApp, zipProject)
                     do! functionApp.SyncTriggersAsync()
 
-                    this.Attach conString
-
                     printfn "Deployed app -- https://%s" functionApp.DefaultHostName
+
                     let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "proxyKey", null)
                     printfn "Key -- %s | %s" funKey.Name funKey.Value
                 }
 
                 work.Wait()
 
-        member _.Run () =
-            // TODO run
-            printfn "Run not implemented"
+        member this.Run () =
+            let conString = System.Environment.GetEnvironmentVariable "Kita_AzureNative_ConnectionString"
+            this.Attach conString

@@ -103,7 +103,7 @@ module AppService =
               "SCM_DO_BUILD_DURING_DEPLOYMENT", "false"
               "FUNCTIONS_EXTENSION_VERSION", "~3"
               "FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated"
-              "Kita_ConnectionString", kitaConnectionString
+              "Kita_AzureNative_ConnectionString", kitaConnectionString
             ] |> dict
 
         printfn "Using app settings:\n%s"
