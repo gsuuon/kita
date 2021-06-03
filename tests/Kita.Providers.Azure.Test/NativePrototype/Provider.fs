@@ -140,10 +140,15 @@ type AzureNative(appName, location) =
                     let! deployment = this.Deploy(conString, functionApp, zipProject)
                     do! functionApp.SyncTriggersAsync()
 
-                    printfn "Deployed app -- https://%s" functionApp.DefaultHostName
+                    let appUri = sprintf "https://%s" functionApp.DefaultHostName
+                    printfn "Deployed app -- %s" appUri
 
                     let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "proxyKey", null)
+                    let appAccessKey = funKey.Value
+
                     printfn "Key -- %s | %s" funKey.Name funKey.Value
+                    printfn "\n\nAccess endpoints:"
+                    printfn "%s/api/<endpoint>?code=%s" appUri appAccessKey
                 }
 
                 work.Wait()
