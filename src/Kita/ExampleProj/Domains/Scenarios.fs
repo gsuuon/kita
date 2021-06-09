@@ -14,11 +14,6 @@ module ScenarioCommon =
     type AResource() =
         interface CloudResource
 
-    type AResourceBuilder() =
-        interface ResourceBuilder<AProvider, AResource> with
-            member _.Build (_p) = 
-                AResource()
-
 module JustRoutesScenario =
     open ScenarioCommon
 

@@ -10,6 +10,7 @@ let retOk = Routes.Http.Helpers.returnOk
 
 module Resources =
     type IValResource<'T> =
+        inherit CloudResource
         abstract Get : unit -> 'T
         abstract Set : 'T -> unit
         
@@ -22,6 +23,7 @@ module Resources =
 
 
     type ILogResource =
+        inherit CloudResource
         abstract Log : string -> unit
 
     type LogResourceProvider =
