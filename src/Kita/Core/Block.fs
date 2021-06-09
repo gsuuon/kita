@@ -15,9 +15,6 @@ type Provider =
 
 type CloudResource = interface end
 
-type ResourceBuilder<'P, 'A when 'P :> Provider and 'A :> CloudResource> =
-    abstract Build : 'P -> 'A
-
 type Managed<'U> =
     { resources : CloudResource list
       nested : Map<string, AttachedBlock<'U>> }
@@ -43,6 +40,44 @@ type Runner<'P, 'U, 'result when 'P :> Provider> =
 module Runner =
     let inline ret x = Runner (fun s -> x, s)
 
+module Resource =
+    let inline create< ^P, ^RC, ^R when 'RC : (member Create : 'P -> 'R)>
+        (resourceCreator: 'RC)
+        (provider: 'P)
+        =
+        (^RC : (member Create: 'P -> 'R) (resourceCreator, provider))
+
+type BlockRunner<'P, 'U when 'P :> Provider> =
+    BlockBindState<'P, 'U> -> AttachedBlock<'U>
+
+module AttachedBlock =
+    let getNestedByPath (root: AttachedBlock<_>) pathsAll =
+        let rec getNested pathsLeft (current: AttachedBlock<_>) =
+            match pathsLeft with
+            | [] -> current
+            | head::rest ->
+                match current.managed.nested.TryGetValue head with
+                | true, attachedBlock ->
+                    getNested rest attachedBlock
+                | false, _ ->
+                    let pathsTraveled =
+                        pathsAll
+                        |> List.take (pathsAll.Length - pathsLeft.Length)
+
+                    failwithf
+                        "No block found\nLost at: %s\nLooking for: %s"
+                            (pathsTraveled |> String.concat ".")
+                            (pathsAll |> String.concat ".")
+
+        getNested pathsAll root
+
+type PublicBlock<'P>(name: string) =
+    // Gets around issues with inline accessing private data and SRTP:
+    // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
+    // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
+    member _.Name = name
+
+[<AutoOpen>]
 module BlockBindState =
     let inline create< ^u, ^p when 'u : (static member Empty : 'u)
                                and 'p :> Provider >
@@ -81,37 +116,6 @@ module BlockBindState =
 
     let getResources = Runner (fun s -> s.managed.resources, s)
 
-type BlockRunner<'P, 'U when 'P :> Provider> =
-    BlockBindState<'P, 'U> -> AttachedBlock<'U>
-
-module AttachedBlock =
-    let getNestedByPath (root: AttachedBlock<_>) pathsAll =
-        let rec getNested pathsLeft (current: AttachedBlock<_>) =
-            match pathsLeft with
-            | [] -> current
-            | head::rest ->
-                match current.managed.nested.TryGetValue head with
-                | true, attachedBlock ->
-                    getNested rest attachedBlock
-                | false, _ ->
-                    let pathsTraveled =
-                        pathsAll
-                        |> List.take (pathsAll.Length - pathsLeft.Length)
-
-                    failwithf
-                        "No block found\nLost at: %s\nLooking for: %s"
-                            (pathsTraveled |> String.concat ".")
-                            (pathsAll |> String.concat ".")
-
-        getNested pathsAll root
-
-type PublicBlock<'P>(name: string) =
-    // Gets around issues with inline accessing private data and SRTP:
-    // error FS0670: This code is not sufficiently generic. The type variable  ^Provider when  ^Provider :> Config and  ^Provider : (new : unit ->  ^Provider) could not be generalized because it would escape its scope
-    // error FS1113: The value 'Run' was marked inline but its implementation makes use of an internal or private function which is not sufficiently accessible
-    member _.Name = name
-
-open BlockBindState
 type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
     inherit PublicBlock<'Provider>(name)
 
@@ -160,21 +164,17 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
               path = [] // FIXME Actually use this or remove
               }
 
-    member inline _.Bind
+    member inline _.Bind< ^rc, ^a, ^r
+                            when 'rc : (member Create : 'Provider -> 'r)
+                             and 'r :> CloudResource>
         (
-            builder: ResourceBuilder<'Provider, 'A>,
-            f
+            resourceCreator: 'rc,
+            f : ('r -> Runner<'Provider, 'U, 'a>)
         ) =
         Runner
-        <| fun s ->
-            let resource = builder.Build s.provider
-                // TODO
-                // if i get a compile error that provider is not public
-                // use block.Provider
-                // else remove PublicBlockBuilder inherit
-
+        <| fun (s: BlockBindState<'Provider, 'U>) ->
+            let resource = Resource.create resourceCreator s.provider
             let (Runner r) = f resource
-
             s |> addResource resource |> r
 
     [<CustomOperation("nest", MaintainsVariableSpaceUsingBind=true)>]
