@@ -4,7 +4,7 @@ open Kita.Core
 
 type ICloudQueue<'T> =
     inherit CloudResource
-    abstract Enqueue : 'T -> Async<unit>
+    abstract Enqueue : 'T list -> Async<unit>
     abstract Dequeue : int -> Async<'T list>
 
 type CloudQueueProvider =

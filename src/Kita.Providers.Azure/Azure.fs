@@ -10,6 +10,9 @@ open Kita.Providers.Azure.Client
 open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
 
+open Kita.Resources
+open Kita.Resources.Collections
+
 type AzureProvider(appName, location) =
     let defaultLocation = "eastus"
 
@@ -95,9 +98,6 @@ type AzureProvider(appName, location) =
         return conString, functionApp
 
         }
-        
-    member _.RequestQueue (qName) =
-        requestProvision <| Storage.createQueue qName
 
     interface Provider with
         // FIXME enforce lowercase only
@@ -153,3 +153,11 @@ type AzureProvider(appName, location) =
         member this.Run () =
             let conString = System.Environment.GetEnvironmentVariable "Kita_AzureNative_ConnectionString"
             this.Attach conString
+
+    interface CloudQueueProvider with
+        member _.Provide (name) =
+            Resources.AzureCloudQueue
+                ( name
+                , connectionString
+                , (fun () -> requestProvision <| Storage.createQueue name)
+                ) :> ICloudQueue<_>
