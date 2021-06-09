@@ -1,3 +1,5 @@
+module ExampleProj.Program
+
 open Kita.Core
 open Kita.Compile
 open Kita.Domains
