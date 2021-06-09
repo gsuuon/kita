@@ -1,4 +1,4 @@
-namespace Kita.Blocks.Routed
+namespace ExampleProj.Domains.Scenarios
 
 open Kita.Core
 open Kita.Domains
