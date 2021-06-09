@@ -70,15 +70,22 @@ let tryCall () =
 
     ()
 
+
+type PublicX< 'T>(x: 'T) =
+    member _.X = x
+
 type ResourceBlock< ^Provider>(provider: 'Provider) =
-    member inline _.Bind< ^rc, ^r when
+    inherit PublicX<'Provider>(provider)
+
+    member inline this.Bind< ^rc, ^r when
                                     'rc : (member Create : 'Provider -> 'r)>
         ( rc: 'rc, f)
         =
-        let resource = create rc provider
+        let resource = create rc this.X
         f resource
 
     member inline _.Return x = x
+
 
 let blockA =
     ResourceBlock(FooProvider()) {
