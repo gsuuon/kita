@@ -1,22 +1,16 @@
 namespace Kita.Resources
 
 open Kita.Core
-open Kita.Providers
 
-type CloudLogFrontend() =
-    interface CloudResource
+type ICloudLog =
+    inherit CloudResource
+    abstract Info : string -> unit
+    abstract Warn : string -> unit
+    abstract Error : string -> unit
 
-    member _.Info = printfn "%s"
-    member _.Warn = printfn "%s"
-    member _.Error = printfn "%s"
+type CloudLogProvider =
+    abstract Provide : unit -> ICloudLog
 
-type CloudLog() = 
-    interface ResourceBuilder<Local, CloudLogFrontend> with
-        member _.Build _p =
-            printfn "Built Local CloudLog"
-            CloudLogFrontend()
-
-    interface ResourceBuilder<Azure, CloudLogFrontend> with
-        member _.Build _p =
-            printfn "Built Azure CloudLog"
-            CloudLogFrontend()
+type CloudLog() =
+    member _.Create (p: #CloudLogProvider) =
+        p.Provide()
