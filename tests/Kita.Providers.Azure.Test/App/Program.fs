@@ -23,13 +23,15 @@ module App =
     open Kita.Domains.Routes.Http
     open Kita.Domains.Routes.Http.Helpers
     open Kita.Compile.Reflect
+    open Kita.Resources.Collections
 
     let app =
         Block<AzureProvider, AppState> "myaznativeapp" {
+
         // TODO name is thrown away
         // This should be the app name
         // app names must be between 2-60 characters alphanumeric + non-leading hyphen
-        let! q = Resource.Queue<string>("myaznatq")
+        let! q = CloudQueue<string>("myaznatq")
 
         do! routes {
             get "hi" (fun _ -> async {
@@ -44,7 +46,7 @@ module App =
                     req.body
                     |> Seq.toArray
                     |> Text.Encoding.UTF8.GetString
-                do! q.Enqueue text
+                do! q.Enqueue [text]
                 return ok "Ok sent"
             })
         }
