@@ -8,41 +8,132 @@ let sayLaunched = printfn "Launched %s"
 let noop = fun () -> ()
 let retOk = Routes.Http.Helpers.returnOk
 
-type AProvider() =
-    interface Provider with
-        member _.Launch () =
-            sayLaunched "A"
-        member _.Run () = ()
+module Resources =
+    type IValResource<'T> =
+        abstract Get : unit -> 'T
+        abstract Set : 'T -> unit
+        
+    type ValResourceProvider =
+        abstract Provide : 'T -> IValResource<'T>
 
-type BProvider() =
-    interface Provider with
-        member _.Launch () =
-            sayLaunched "B"
-        member _.Run () = ()
+    type ValResource<'T>(x: 'T) =
+        member _.Create (p: #ValResourceProvider) =
+            p.Provide x
 
-type CProvider() =
-    interface Provider with
-        member _.Launch () =
-            sayLaunched "C"
-        member _.Run () = ()
 
-type SomeResourceFrontend<'T>(v: 'T) =
-    member _.GetThing () = v
-    interface CloudResource
+    type ILogResource =
+        abstract Log : string -> unit
 
-type SomeResource<'T>(v) =
-    interface ResourceBuilder<AProvider, SomeResourceFrontend<'T>> with
-        member _.Build _x =
-            printfn "SomeResource AProvider: %A" v
-            SomeResourceFrontend(v)
+    type LogResourceProvider =
+        abstract Provide : unit -> ILogResource
 
-    interface ResourceBuilder<BProvider, SomeResourceFrontend<'T>> with
-        member _.Build _x =
-            printfn "SomeResource BProvider: %A" v
-            SomeResourceFrontend(v)
+    type LogResource() =
+        member _.Create (provider: #LogResourceProvider) =
+            provider.Provide ()
+
+
+module Providers =
+    open Resources
+
+    type FooProvider() =
+        interface Provider with
+            member _.Launch () =
+                sayLaunched "Foo"
+            member _.Run () = ()
+
+        interface ValResourceProvider with
+            member _.Provide x =
+                let mutable x' = x
+                { new IValResource<_> with
+                    member _.Get () = x'
+                    member _.Set x = x' <- x }
+
+        interface LogResourceProvider with
+            member _.Provide () =
+                { new ILogResource with
+                    member _.Log x = printfn "%s" x }
+
+    type BarProvider() =
+        interface Provider with
+            member _.Launch () =
+                sayLaunched "Bar"
+            member _.Run () = ()
+
+        interface LogResourceProvider with
+            member _.Provide () =
+                { new ILogResource with
+                    member _.Log x = printfn "%s" x }
+
+
+module SimpleScenario =
+    open Resources
+    open Providers
+
+    let blockA =
+        Block<FooProvider, unit> "A" {
+            let! x = ValResource 0
+            let! logger = LogResource ()
+            logger.Log "hey"
+            let x1 = x.Get()
+            x.Set 1
+            let x2 = x.Get()
+
+            return ()
+        }
+
+
+module ExtendResource =
+    open Resources
+    open Providers
+
+    type IQueueResource<'T> =
+        inherit CloudResource
+        abstract Queue : 'T -> unit
+        abstract Dequeue : unit -> 'T option
+
+    type QueueResourceProvider =
+        abstract Provide : unit -> IQueueResource<'T>
+
+    type QueueResource<'T>() =
+        member _.Create (provider: QueueResourceProvider) =
+            provider.Provide<'T> ()
+
+    type FooQProvider() =
+        inherit FooProvider()
+
+        interface QueueResourceProvider with
+            member _.Provide<'T> () =
+                let mutable q = List.empty
+
+                { new IQueueResource<'T> with
+                    member _.Queue x =
+                        q <- x :: q
+                    member _.Dequeue () =
+                        match q with
+                        | head :: rest ->
+                            q <- rest
+                            Some head
+                        | [] ->
+                            None
+                        }
+
+    let blockB =
+        Block<FooQProvider, unit> "B" {
+            let! x = ValResource 0
+            let x1 = x.Get()
+
+            let! logger = LogResource ()
+
+            let! q = QueueResource<char> ()
+            let x = q.Dequeue ()
+
+            return ()
+        }
 
 module RestrictedProviderScenario =
     // Restrict an add-on to a specific provider
+    open Providers
+    open Resources
     
     type RestrictedBuilderToAProvider<'U, 'D>(userDomain) =
         // Add-on, borrows proc as example
@@ -60,7 +151,7 @@ module RestrictedProviderScenario =
 
                 ctx,
                 s'
-                |> UserDomain.update<AProvider, 'U, 'D>
+                |> UserDomain.update<FooProvider, 'U, 'D>
                     // Use the provider type parameter to restrict this custom op to AProvider
                     this.UserDomain
                     id
@@ -80,10 +171,10 @@ module RestrictedProviderScenario =
 
     type Chunk< ^T when 'T :> Provider> = string -> Block< 'T, AppState>
 
-    let chunkA (chunk: Chunk<AProvider>) =
-        // restrictedToAProvider add-on breaks if we switch the provider type to BProvider
+    let chunkA (chunk: Chunk<FooProvider>) =
+        // restrictedToAProvider add-on breaks if we switch the provider type to BarProvider
         chunk "hey" {
-            let! _x = SomeResource()
+            let! _x = LogResource()
 
             do! restrictedToAProvider {
                 proc noop
@@ -93,6 +184,9 @@ module RestrictedProviderScenario =
         }
 
 module NestScenario = 
+    open Providers
+    open Resources
+
     open Kita.Domains.Routes
     
     type AppState =
@@ -119,17 +213,17 @@ module NestScenario =
     let routes =
         RoutesBlock<AppState> routesDomain
 
-    let blockA : BlockRunner<AProvider, AppState> =
+    let blockA : BlockRunner<FooProvider, AppState> =
         block "blockA" {
-            let! x = SomeResource 0
-            let _y = x.GetThing()
+            let! x = ValResource 0
+            let _y = x.Get()
             do! routes {
                 post "blockA hello" retOk
             }
             return ()
         }
 
-    let blockB : BlockRunner<BProvider, AppState> =
+    let blockB : BlockRunner<BarProvider, AppState> =
         block "blockB" {
             do! routes {
                 post "blockB hello" retOk
@@ -137,17 +231,17 @@ module NestScenario =
             return ()
         }
 
-    let blockC : BlockRunner<AProvider, AppState> =
+    let blockC : BlockRunner<FooProvider, AppState> =
         block "blockC" {
-            let! _x = SomeResource()
+            let! _x = LogResource()
             return ()
         }
 
     let main =
-        let bProvider = BProvider()
+        let bProvider = BarProvider()
 
-        Block<AProvider, AppState> "main" {
-            let! _x = SomeResource()
+        Block<FooProvider, AppState> "main" {
+            let! _x = LogResource()
 
             do! routes {
                 post "main hi" retOk
@@ -162,7 +256,7 @@ module NestScenario =
 
     let launch withRoutes =
         printfn "Starting attach"
-        let attached = main |> Operation.attach (AProvider())
+        let attached = main |> Operation.attach (FooProvider())
         printfn "Finished attach"
         attached |> Routes.Operation.launchRoutes routesDomain withRoutes
     
