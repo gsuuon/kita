@@ -79,6 +79,11 @@ type AzureCloudQueue<'T>
 
             return
                 rMsgs.Value
+                |> Array.map (fun x ->
+                    client.DeleteMessage (x.MessageId, x.PopReceipt) |> ignore
+
+                    x
+                    )
                 |> Array.map (fun x -> x.MessageText)
                 |> Array.map JsonSerializer.Deserialize<'T>
                 |> Array.toList
