@@ -111,3 +111,23 @@ module Reflect =
         typ.FullName
         |> fun s -> s.Replace("+", ".")
         |> fun typName -> typName + "." + mi.Name
+
+    let getConstructString (typ: Type) =
+        if typ.IsGenericType then
+            failwith "Trying to generate a construct string for a generic type."
+
+        let hasParameterlessPublicCtor =
+            typ.GetConstructors()
+            |> Array.exists
+                (fun ctor ->
+                    let pars = ctor.GetParameters()
+                    if pars.Length > 0 then false
+                    elif ctor.IsPrivate then false
+                    else true
+                )
+        if not hasParameterlessPublicCtor then
+            failwith "Trying to generate a construct string for a type missing a parameterless public constructor"
+
+        typ.FullName
+        |> fun s -> s.Replace("+", ".")
+        |> fun s -> s + "()"

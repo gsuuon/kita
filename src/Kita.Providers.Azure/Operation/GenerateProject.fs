@@ -10,8 +10,8 @@ module GenerateProject =
 
     open Kita.Core
     open Kita.Compile
-    open Kita.Compile.Domains.Routes
     open Kita.Providers.Azure
+    open Kita.Providers.Azure.Compile
 
     [<AutoOpen>]
     module Zipper = 
@@ -61,25 +61,27 @@ module GenerateProject =
             
         let replaceAppReference (fileText: string) =
             // TODO
-            // Find the type with rootblock attribute
-            // get fullname of type
-            // In proxy project:
-            // instantiate the replaced reference
-            // call interface method DomainLauncher<RouteState,_>.Launch
+            // - [ ] Find type with AzureRunModule attribute
+            // - [ ] Match by name of app
 
-            let appLauncherMethod = Reflect.findRoutesEntry "main"
-            let appLauncherCallString = Reflect.getCallString appLauncherMethod
+            let runModuleType =
+                match Reflect.findAzureRunModule "main" with
+                | Some typ -> typ
+                | None ->
+                    failwith "Couldn't find AzureRunModule type (needs AzureRunModuleAttribute)"
 
-            let targetAssign = "let appLauncher = "
+            let runModuleConstructString = Reflect.getConstructString runModuleType
 
-            printfn "Replacing appLauncher with: %s" appLauncherCallString
+            let targetAssign = "let runModule = "
+
+            printfn "Replacing appLauncher with: %s" runModuleConstructString
 
             findAndReplaceLine
             <| fun line -> line.Contains targetAssign
             <| fun line ->
                 let indent = (line.Split "let").[0]
 
-                let res = indent + targetAssign + appLauncherCallString
+                let res = indent + targetAssign + runModuleConstructString
                 printfn "Replaced accessor with: %s" res
                 res
             <| fileText
