@@ -13,6 +13,9 @@ open Kita.Providers.Azure.AzureNextApi
 open Kita.Resources
 open Kita.Resources.Collections
 
+type InjectableLogger =
+    abstract SetLogger : Logger -> unit
+
 type AzureProvider(appName, location) =
     let defaultLocation = "eastus"
 
@@ -22,7 +25,15 @@ type AzureProvider(appName, location) =
 
     let connectionString = Waiter<string>()
 
+    let mutable logger =
+        { new Logger with
+            member _.Info x = printfn "INFO: %s" x
+            member _.Warn x = printfn "WARN: %s" x
+            member _.Error x = printfn "ERROR: %s" x
+        }
+
     let mutable launched = false
+        // FIXME rework launch/run so this isn't necessary
 
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
@@ -166,7 +177,6 @@ type AzureProvider(appName, location) =
                 , (fun () -> requestProvision <| Storage.createQueue name)
                 ) :> ICloudQueue<_>
 
-
     interface CloudMapProvider with
         member _.Provide<'K, 'V> name =
             Resources.AzureCloudMap
@@ -174,3 +184,6 @@ type AzureProvider(appName, location) =
                 , connectionString
                 , fun () -> requestProvision <| Storage.createMap name
                 ) :> ICloudMap<'K, 'V>
+
+    interface InjectableLogger with
+        member _.SetLogger lg = logger <- lg

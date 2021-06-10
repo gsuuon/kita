@@ -17,6 +17,7 @@ module Proxy =
     open Kita.Domains
     open Kita.Domains.Routes
     open Kita.Domains.Routes.Http
+    open Kita.Providers.Azure
 
     let connectionString =
         Environment.GetEnvironmentVariable
@@ -24,18 +25,29 @@ module Proxy =
         // TODO this needs to be a generated name
 
     let handleRoute =
+        let runModule = ProxyApp.AutoReplacedReference.runModule
+
         let notFoundHandler req : Async<RawResponse> =
             async { return { body = "Not found :("; status = NOTFOUND } }
 
         let routeState =
-            ProxyApp.AutoReplacedReference.appLauncher <| id
+            runModule.RunRouteState <| id
 
-                fun routeAddress ->
-                match routeState.routes.TryFind routeAddress with
+        let injectLog (lg: ILogger) =
+            let logInjecter = runModule.Provider :> InjectableLogger
 
-        let rootHandler log routeAddress =
+            logInjecter.SetLogger
+                { new Kita.Resources.Logger with
+                    member _.Info x = lg.LogInformation x
+                    member _.Warn x = lg.LogWarning x
+                    member _.Error x = lg.LogError x
+                }
+
+        let rootHandler lg routeAddress =
             match routeState.routes.TryFind routeAddress with
             | Some handler ->
+                injectLog lg
+
                 handler
             | None ->
                 log <| sprintf "Unknown route: %A" routeAddress
@@ -56,17 +68,15 @@ module Proxy =
                 route: string,
                 context: FunctionContext)
         = 
-        let log =
-            let l = context.GetLogger()
-            l.LogInformation
+        let lg = context.GetLogger()
 
-        log (sprintf "Proxy handling route: %s" route)
+        lg.LogInformation (sprintf "Proxy handling route: %s" route)
 
         let routeAddress =
             { path = route
               method = Helpers.canonMethod req.Method }
 
-        let handler = handleRoute log routeAddress
+        let handler = handleRoute lg routeAddress
 
         task {
             let! rawRequest = ProxyApp.Adapt.inRequest req
