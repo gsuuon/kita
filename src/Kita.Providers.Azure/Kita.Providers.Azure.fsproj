@@ -17,6 +17,7 @@
     <Compile Include="Resources/CloudQueue.fs" />
     <Compile Include="Resources/CloudMap.fs" />
     <Compile Include="Azure.fs" />
+    <Compile Include="RunContext.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -95,16 +95,24 @@ module AppOp =
     open AppSpec
     open App
     open Kita.Compile.Domains.Routes
+    open Kita.Providers.Azure.RunContext
 
-    let attachedApp = 
-        let provider = AzureProvider("myaznativeapp", "eastus")
-
-        app
-        |> Operation.attach provider
-
-    [<RoutesEntrypoint("main")>]
+    let provider = AzureProvider("myaznativeapp", "eastus")
+    let attachedApp = app |> Operation.attach provider
     let runRouteState withDomain =
         attachedApp |> Routes.Operation.runRoutes routesDomain withDomain
+
+    [<AzureRunModule("myaznativeapp")>]
+    type AzureRunner() =
+        interface AzureRunModule<AppState> with
+            member _.Provider = provider
+            member _.RunRouteState x = runRouteState x
+
+    // Does it make more sense to run / launch, and _then_ do work on domains?
+    // In the proxy project, if I run routes then run logs, I'd need to remember
+    // in the RunApp if I've run or not. But if I've already run, there's no way to
+    // access all the blocks again without running again. That means run needs to be
+    // idempotent, which it currently is but is not guaranteed to stay that way.
 
     let launchRouteState withDomain =
         attachedApp |> Routes.Operation.launchRoutes routesDomain withDomain
