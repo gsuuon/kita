@@ -43,6 +43,7 @@ type AzureProvider(appName, location) =
         GenerateProject.generateFunctionsAppZip
             (Path.Join(__SOURCE_DIRECTORY__, "ProxyFunctionApp"))
             conString
+            appName
 
     member _.Deploy (conString, functionApp, generatedZip: byte[]) = task {
         let blobs = Blobs(conString)

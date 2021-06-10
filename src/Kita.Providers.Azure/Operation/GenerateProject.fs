@@ -59,16 +59,16 @@ module GenerateProject =
             |> Array.map (fun line -> if find line then replace line else line)
             |> String.concat "\r"
             
-        let replaceAppReference (fileText: string) =
+        let replaceAppReference appName (fileText: string) =
             // TODO
             // - [ ] Find type with AzureRunModule attribute
             // - [ ] Match by name of app
 
             let runModuleType =
-                match Reflect.findAzureRunModule "main" with
+                match Reflect.findAzureRunModule appName with
                 | Some typ -> typ
                 | None ->
-                    failwith "Couldn't find AzureRunModule type (needs AzureRunModuleAttribute)"
+                    failwithf """Couldn't find AzureRunModule type (needs [<AzureRunModuleFor("%s")>])""" appName
 
             let runModuleConstructString = Reflect.getConstructString runModuleType
 
@@ -222,6 +222,7 @@ module GenerateProject =
     let rec generateFunctionsAppZip
         (proxyAppPath: string)
         conString
+        appName
         = task {
 
         try
@@ -232,7 +233,7 @@ module GenerateProject =
             <| proxyAppPath
             <| fun relativePath fileText ->
                 if relativePath = "AutoReplacedReference.fs" then
-                    replaceAppReference fileText
+                    replaceAppReference appName fileText
                 else if relativePath.EndsWith ".fsproj" then
                     replaceProjectReference proxyAppPath fileText
                 // TODO generate app-namespaced connection string env variable
@@ -274,7 +275,7 @@ module GenerateProject =
 
             match readKey 10000 with
             | Some 'r' ->
-                return! generateFunctionsAppZip proxyAppPath conString
+                return! generateFunctionsAppZip proxyAppPath conString appName
             | None
             | Some 'a'
             | Some _ ->

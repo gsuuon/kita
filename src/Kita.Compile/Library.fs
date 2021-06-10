@@ -84,7 +84,7 @@ module Reflect =
             |> Array.tryFind (fun mi -> eval mi) )
 
     let findType eval = 
-        Assembly.GetCallingAssembly().GetTypes()
+        Assembly.GetEntryAssembly().GetTypes()
         |> Array.tryFind (fun typ -> eval typ )
         
     let findRootBlockFor rootName =
