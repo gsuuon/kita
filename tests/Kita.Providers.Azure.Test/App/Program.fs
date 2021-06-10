@@ -32,6 +32,13 @@ module App =
         // This should be the app name
         // app names must be between 2-60 characters alphanumeric + non-leading hyphen
         let! q = CloudQueue<string>("myaznatq")
+        let! map = CloudMap<string, string>("myaznatmap")
+
+        let getKey (req: RawRequest) =
+            let key = req.queries.["key"]
+            match key with
+            | [] -> None
+            | k::_rest -> Some k
 
         do! routes {
             get "hi" (fun _ -> async {
@@ -48,6 +55,38 @@ module App =
                     |> Text.Encoding.UTF8.GetString
                 do! q.Enqueue [text]
                 return ok "Ok sent"
+            })
+
+            get "val" (fun req -> async {
+                let key = getKey req
+                match key with
+                | Some k ->
+                    let! x = map.TryFind k
+                    match x with
+                    | Some v ->
+                        return ok v
+                    | None ->
+                        return ok <| sprintf "Didn't find that key %s" k
+                | None ->
+                    return ok "No key in queries"
+            })
+
+            post "val" (fun req -> async {
+                let key = getKey req
+
+                match key with
+                | Some k ->
+                    let body =
+                        req.body
+                        |> Seq.toArray
+                        |> Text.Encoding.UTF8.GetString
+
+                    do! map.Set (k, body)
+
+                    return ok <| sprintf "Set %s" k
+
+                | None ->
+                    return ok "No key in queries"
             })
         }
     }
