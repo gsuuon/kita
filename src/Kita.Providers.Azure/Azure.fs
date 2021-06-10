@@ -152,7 +152,11 @@ type AzureProvider(appName, location) =
 
         member this.Run () =
             let conString = System.Environment.GetEnvironmentVariable "Kita_AzureNative_ConnectionString"
-            this.Attach conString
+
+            if conString <> null then
+                this.Attach conString
+            else
+                failwith "Connection string environment variable is missing, it needs to be set to run the Azure provider."
 
     interface CloudQueueProvider with
         member _.Provide (name) =
