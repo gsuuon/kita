@@ -5,13 +5,25 @@ open FSharp.Control.Tasks
 
 open Kita.Core
 open Kita.Utility
-open Kita.Resources
+open Kita.Resources.Utility
+open Kita.Resources.Collections
 open Kita.Providers.Azure.Client
 
 open System.Text.Json
 
-type AzureCloudQueue<'T>(queueClient: Waiter<QueueClient>) =
-    new (name, conStringWaiter: Waiter<string>, requestProvision) =
+type AzureCloudQueue<'T>
+    (
+        queueClient: Waiter<QueueClient>,
+        serializer: Serializer<string>
+    ) =
+    new (
+        name,
+        conStringWaiter: Waiter<string>,
+        requestProvision,
+        serializer
+        ) =
+        requestProvision()
+
         let queueClient = Waiter<QueueClient>()
 
         async {
@@ -21,9 +33,21 @@ type AzureCloudQueue<'T>(queueClient: Waiter<QueueClient>) =
             QueueClient(conString, name) |> queueClient.Set
         } |> Async.Start
 
-        AzureCloudQueue queueClient
+        AzureCloudQueue (queueClient, serializer)
 
-    interface Collections.ICloudQueue<'T> with
+    new (
+        name,
+        conStringWaiter: Waiter<string>,
+        requestProvision
+        ) =
+        AzureCloudQueue
+            ( name
+            , conStringWaiter
+            , requestProvision
+            , Utility.Serializer.json
+            )
+
+    interface ICloudQueue<'T> with
         member _.Enqueue xs = async {
             let! client = queueClient.GetAsync
 
@@ -58,4 +82,4 @@ type AzureCloudQueue<'T>(queueClient: Waiter<QueueClient>) =
                 |> Array.map (fun x -> x.MessageText)
                 |> Array.map JsonSerializer.Deserialize<'T>
                 |> Array.toList
-                }
+            }
