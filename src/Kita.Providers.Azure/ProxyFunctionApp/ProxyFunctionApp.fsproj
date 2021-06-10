@@ -11,7 +11,8 @@
     <!-- Kita_AppProjectReference -->
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../../../src/Kita/Kita.fsproj" />
+    <ProjectReference Include="../../../src/Kita/Kita.fsproj" />
+    <ProjectReference Include="../Kita.Providers.Azure.fsproj" />
     <!-- TODO I feel like this should depend on AzureNative -->
   </ItemGroup>
   <ItemGroup>
