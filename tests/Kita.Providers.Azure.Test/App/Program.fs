@@ -96,13 +96,14 @@ module AppOp =
     open App
     open Kita.Compile.Domains.Routes
     open Kita.Providers.Azure.RunContext
+    open Kita.Providers.Azure.Compile
 
     let provider = AzureProvider("myaznativeapp", "eastus")
     let attachedApp = app |> Operation.attach provider
     let runRouteState withDomain =
         attachedApp |> Routes.Operation.runRoutes routesDomain withDomain
 
-    [<AzureRunModule("myaznativeapp")>]
+    [<AzureRunModuleFor("myaznativeapp")>]
     type AzureRunner() =
         interface AzureRunModule<AppState> with
             member _.Provider = provider
