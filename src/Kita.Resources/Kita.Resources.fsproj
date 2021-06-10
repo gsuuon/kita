@@ -7,6 +7,7 @@
     <ProjectReference Include="../Kita/Kita.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Utility.fs" />
     <Compile Include="Collections/CloudMap.fs" />
     <Compile Include="Collections/CloudQueue.fs" />
     <Compile Include="CloudLog.fs" />

@@ -4,8 +4,8 @@ open Kita.Core
 
 type ICloudMap<'K, 'V> =
     inherit CloudResource
-    abstract TryFind : 'K -> 'V option
-    abstract Set : ('K * 'V) -> unit
+    abstract TryFind : 'K -> Async<'V option>
+    abstract Set : 'K * 'V -> Async<unit>
 
 type CloudMapProvider =
     abstract Provide<'K, 'V> : string -> ICloudMap<'K, 'V>

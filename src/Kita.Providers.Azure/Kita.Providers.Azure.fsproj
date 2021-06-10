@@ -13,7 +13,9 @@
     <Compile Include="Operation/AzurePreviousApi.fs" />
     <Compile Include="Operation/Client/Blobs.fs" />
     <Compile Include="Operation/GenerateProject.fs" />
+    <Compile Include="Resources/Utility/Serializer.fs" />
     <Compile Include="Resources/CloudQueue.fs" />
+    <Compile Include="Resources/CloudMap.fs" />
     <Compile Include="Azure.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
