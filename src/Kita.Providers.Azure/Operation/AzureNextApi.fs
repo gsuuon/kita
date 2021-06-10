@@ -124,7 +124,7 @@ module Storage =
         saName
         = task {
 
-        let! table =
+        let! blobContainer =
             storageClient.BlobContainers.CreateAsync
                 ( rgName
                 , saName
@@ -132,7 +132,7 @@ module Storage =
                 , new BlobContainer() )
                 |> rValue
 
-        printfn "Using table: %s" table.Id
+        printfn "Using blob container as map: %s" blobContainer.Id
 
         return ()
 
