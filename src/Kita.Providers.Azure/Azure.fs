@@ -161,3 +161,12 @@ type AzureProvider(appName, location) =
                 , connectionString
                 , (fun () -> requestProvision <| Storage.createQueue name)
                 ) :> ICloudQueue<_>
+
+
+    interface CloudMapProvider with
+        member _.Provide<'K, 'V> name =
+            Resources.AzureCloudMap
+                ( name
+                , connectionString
+                , fun () -> requestProvision <| Storage.createMap name
+                ) :> ICloudMap<'K, 'V>

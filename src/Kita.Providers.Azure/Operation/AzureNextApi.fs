@@ -118,6 +118,26 @@ module Storage =
 
         }
 
+    let createMap
+        mapName
+        rgName
+        saName
+        = task {
+
+        let! table =
+            storageClient.BlobContainers.CreateAsync
+                ( rgName
+                , saName
+                , mapName
+                , new BlobContainer() )
+                |> rValue
+
+        printfn "Using table: %s" table.Id
+
+        return ()
+
+        }
+
     let createBlobContainer
         containerName
         rgName
