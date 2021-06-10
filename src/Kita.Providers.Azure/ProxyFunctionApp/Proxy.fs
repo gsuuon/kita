@@ -18,6 +18,7 @@ module Proxy =
     open Kita.Domains.Routes
     open Kita.Domains.Routes.Http
     open Kita.Providers.Azure
+    open Kita.Providers.Azure.RunContext
 
     let connectionString =
         Environment.GetEnvironmentVariable
@@ -25,7 +26,7 @@ module Proxy =
         // TODO this needs to be a generated name
 
     let handleRoute =
-        let runModule = ProxyApp.AutoReplacedReference.runModule
+        let runModule = ProxyApp.AutoReplacedReference.runModule :> AzureRunModule<_>
 
         let notFoundHandler req : Async<RawResponse> =
             async { return { body = "Not found :("; status = NOTFOUND } }
@@ -43,14 +44,14 @@ module Proxy =
                     member _.Error x = lg.LogError x
                 }
 
-        let rootHandler lg routeAddress =
+        let rootHandler (lg: ILogger) routeAddress =
             match routeState.routes.TryFind routeAddress with
             | Some handler ->
                 injectLog lg
 
                 handler
             | None ->
-                log <| sprintf "Unknown route: %A" routeAddress
+                lg.LogInformation <| sprintf "Unknown route: %A" routeAddress
                 notFoundHandler
 
         (* ProxyApp.AutoReplacedReference.app.Run() *)
@@ -68,7 +69,7 @@ module Proxy =
                 route: string,
                 context: FunctionContext)
         = 
-        let lg = context.GetLogger()
+        let lg = context.GetLogger() :> ILogger
 
         lg.LogInformation (sprintf "Proxy handling route: %s" route)
 
