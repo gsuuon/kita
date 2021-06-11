@@ -8,4 +8,3 @@ open Kita.Compile.Reflect
 type AzureRunModule<'U> =
     abstract Provider : AzureProvider
     abstract RunRouteState : (RouteState -> 'T) -> 'T
-

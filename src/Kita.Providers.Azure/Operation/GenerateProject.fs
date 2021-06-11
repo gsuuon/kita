@@ -53,11 +53,20 @@ module GenerateProject =
                 withArchive archive
 
         let findAndReplaceLine find replace (fileText: string) =
-            let lines = fileText.Split("\r")
+            // figure out if newline is \r\n or \r by checking if \r exists in filetext
+            // do this one level up so not on every findandreplace
+            // make this curryable by newline
+            let newline =
+                if fileText.Contains "\r\n" then
+                    "\r\n"
+                else
+                    "\r"
+
+            let lines = fileText.Split newline
 
             lines
             |> Array.map (fun line -> if find line then replace line else line)
-            |> String.concat "\r"
+            |> String.concat newline
             
         let replaceAppReference appName (fileText: string) =
             // TODO
@@ -161,6 +170,49 @@ module GenerateProject =
             <| fun line -> line.Replace(replaceTarget, conString)
             <| fileText
 
+    module GenerateTasks =
+        type GenerateTaskArgs =
+            { cleanedTaskName : string
+              chronExpr : string
+              taskIdx : int }
+
+        let generateTaskRunner taskArgs = $"""module {taskArgs.cleanedTaskName} =
+        open TaskProxy
+
+        [<Function("{taskArgs.cleanedTaskName}")>]
+        let run
+            ([<TimerTrigger("{taskArgs.chronExpr}")>] timerInfo: TimerInfo,
+                context: FunctionContext
+            ) =
+            context.GetLogger() :> ILogger |> injectLog 
+
+            tasks.[{taskArgs.taskIdx}].Work() |> Async.RunSynchronously"""
+
+        let compileAndReplace
+            (tasks: Kita.Resources.ICloudTask list)
+            fileText
+            =
+            let cleanName (fn: unit -> Async<unit>) =
+                let typ = fn.GetType()
+                typ.Name
+                |> fun s -> s.Replace("@", "__")
+                |> fun s -> s.Replace("-", "_")
+
+            let compiledTasks =
+                tasks
+                |> List.mapi
+                    (fun idx task ->
+                        generateTaskRunner
+                            { cleanedTaskName = cleanName task.Work
+                              chronExpr = task.Chron
+                              taskIdx = idx })
+                |> String.concat "\n"
+
+            findAndReplaceLine
+            <| fun line -> line.Contains "// GeneratedTasks"
+            <| fun line -> compiledTasks
+            <| fileText
+        
     [<AutoOpen>]
     module Builder = 
         open System.Diagnostics
@@ -223,6 +275,7 @@ module GenerateProject =
         (proxyAppPath: string)
         conString
         appName
+        tasks
         = task {
 
         try
@@ -239,6 +292,8 @@ module GenerateProject =
                 // TODO generate app-namespaced connection string env variable
                 else if relativePath.EndsWith "local.settings.json" then
                     replaceLocalSettings conString fileText
+                else if relativePath = "TaskProxy.fs" then
+                    GenerateTasks.compileAndReplace tasks fileText
                 else
                     fileText
             <| fun archive ->
@@ -275,7 +330,12 @@ module GenerateProject =
 
             match readKey 10000 with
             | Some 'r' ->
-                return! generateFunctionsAppZip proxyAppPath conString appName
+                return!
+                    generateFunctionsAppZip
+                        proxyAppPath
+                        conString
+                        appName
+                        tasks
             | None
             | Some 'a'
             | Some _ ->

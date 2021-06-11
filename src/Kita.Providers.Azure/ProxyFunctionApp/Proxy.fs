@@ -65,10 +65,10 @@ module Proxy =
             (AuthorizationLevel.Function,
                 "get",
                 "post",
-                Route = "{**route}")>]req: HttpRequestData,
-                route: string,
-                context: FunctionContext)
-        = 
+                Route = "{**route}")>] req: HttpRequestData,
+            route: string,
+            context: FunctionContext
+        ) = 
         let lg = context.GetLogger() :> ILogger
 
         lg.LogInformation (sprintf "Proxy handling route: %s" route)
