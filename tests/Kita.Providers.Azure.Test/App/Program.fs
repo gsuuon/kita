@@ -11,6 +11,10 @@ module AppSpec =
         { routeState : RouteState }
         static member Empty = { routeState = RouteState.Empty }
 
+    type ChatMessage =
+        { author : string
+          body : string }
+
     let routesDomain = 
         { new UserDomain<_,_> with
             member _.get s = s.routeState
@@ -34,8 +38,16 @@ module App =
         // app names must be between 2-60 characters alphanumeric + non-leading hyphen
         let! q = CloudQueue<string>("myaznatq")
 
+            // Naming rules for some common resources
+            // 3 - 63 characters
+            // alphanumeric + hyphen
+            // can't start or end with hyphen
+            // no consecutive hyphens
+            // lowercase
+            // Reference: https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules#microsoftstorage
+
         let! map = CloudMap<string, string>("myaznatmap")
-        let! chats = CloudMap<string, string list>("mychatroom")
+        let! chats = CloudMap<string, ChatMessage list>("chats-typed1")
 
         let! lg = CloudLog()
 
@@ -62,6 +74,11 @@ module App =
             | false, _ ->
                 None
 
+        let readBody (req: RawRequest) =
+            req.body
+            |> Seq.toArray
+            |> Text.Encoding.UTF8.GetString
+
         do! routes {
             get "hi" (fun _ -> async {
                 let! xs = q.Dequeue 20
@@ -69,10 +86,7 @@ module App =
             })
 
             post "hi" (fun req -> async {
-                let text =
-                    req.body
-                    |> Seq.toArray
-                    |> Text.Encoding.UTF8.GetString
+                let text = readBody req
                 do! q.Enqueue [text]
                 return ok "Ok sent"
             })
@@ -96,10 +110,7 @@ module App =
 
                 match key with
                 | Some k ->
-                    let body =
-                        req.body
-                        |> Seq.toArray
-                        |> Text.Encoding.UTF8.GetString
+                    let body = readBody req
 
                     do! map.Set (k, body)
 
@@ -120,6 +131,7 @@ module App =
                     | Some messages ->
                         let formattedMessages =
                             messages
+                            |> List.map (fun msg -> sprintf "%s: %s" msg.author msg.body)
                             |> String.concat "\n"
                             
                         return ok <| sprintf "Got messages:\n%s" formattedMessages
@@ -133,18 +145,22 @@ module App =
                 let roomOpt = getFirstQuery "room" req
                 match roomOpt with
                 | Some room ->
-                    let messageOpt = getFirstQuery "message" req
-                    match messageOpt with
+                    let authorOpt = getFirstQuery "author" req
+                    match authorOpt with
                     | None ->
-                        return ok <| "No message specified"
-                    | Some message ->
+                        return ok <| "No author specified"
+                    | Some author ->
                         let! messagesOpt = chats.TryFind room
+                        let chatMessage =
+                            { author = author
+                              body = readBody req }
+                            
                         match messagesOpt with
                         | None ->
-                            do! chats.Set(room, [message])
+                            do! chats.Set(room, [chatMessage])
                             return ok <| "Added message"
                         | Some messages ->
-                            do! chats.Set(room, messages @ [message])
+                            do! chats.Set(room, messages @ [chatMessage])
                             return ok <| "Added message"
                 | None ->
                     return ok <| "No room specified"

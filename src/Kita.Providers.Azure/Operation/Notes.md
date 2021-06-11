@@ -110,3 +110,10 @@ Looks like if host.json gets rewritten, that at least triggers a restart. Should
 2021-06-11T18:52:30.439 [Information] Host configuration has changed. Signaling restart
 2021-06-11T18:52:30.485 [Information] File change of type 'Changed' detected for 'C:\home\site\wwwroot\host.json'
 2021-06-11T18:52:30.485 [Information] Host configuration has changed. Signaling restart
+
+
+### Naming rules
+
+There are many varied restrictions when it comes to naming resources. Probably not possible to accurately cover all of these, especially if they change.
+
+https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules#microsoftstorage
