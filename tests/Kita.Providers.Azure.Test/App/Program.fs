@@ -23,6 +23,7 @@ module App =
     open Kita.Domains.Routes.Http
     open Kita.Domains.Routes.Http.Helpers
     open Kita.Compile.Reflect
+    open Kita.Resources
     open Kita.Resources.Collections
 
     let app =
@@ -32,7 +33,16 @@ module App =
         // This should be the app name
         // app names must be between 2-60 characters alphanumeric + non-leading hyphen
         let! q = CloudQueue<string>("myaznatq")
+
         let! map = CloudMap<string, string>("myaznatmap")
+
+        let! lg = CloudLog()
+
+        let! _task =
+            CloudTask("*/5 * * * * *",
+                fun () -> async {
+                    lg.Info "Ran task 2"
+                })
 
         let getKey (req: RawRequest) =
             let key = req.queries.["key"]
@@ -43,9 +53,7 @@ module App =
         do! routes {
             get "hi" (fun _ -> async {
                 let! xs = q.Dequeue 20
-                return
-                    sprintf "Got %A" xs
-                    |> ok
+                return ok <| sprintf "Got %A" xs
             })
 
             post "hi" (fun req -> async {
@@ -82,6 +90,8 @@ module App =
                         |> Text.Encoding.UTF8.GetString
 
                     do! map.Set (k, body)
+
+                    lg.Info <| sprintf "Saved %A to %A" body k
 
                     return ok <| sprintf "Set %s" k
 
