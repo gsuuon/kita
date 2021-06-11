@@ -88,3 +88,15 @@ The error:
        at System.Threading.Tasks.Task.Wait(Int32 millisecondsTimeout, CancellationToken cancellationToken)
        at System.Threading.Tasks.Task.Wait()
        at Program.main(String[] argv) in C:\Users\Steven\Projects\Kita\tests\Kita.Providers.Azure.Test\NativePrototype\App\Program.fs:line 43
+
+
+### Thread was being aborted
+
+> ARM-MSDeploy Deploy Failed: 'System.Threading.ThreadAbortException: Thread was being aborted.
+
+Race condition with certain changes causing a restart, then deploy request is sent. If deploy gets cut off because of the restart, we get this error.
+
+Not sure which changes are triggering the restart though..
+
+Maybe creating the function app?
+I need the function app to deploy the blob.. I don't think I can create the functionapp with blob specified

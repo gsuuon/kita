@@ -135,6 +135,22 @@ module AppService =
               "Kita_AzureNative_ConnectionString", kitaConnectionString
             ] |> dict
 
+        printfn "Deploying blob.."
+
+        let! deployment =
+        // This fails a lot?
+        // ARM-MSDeploy Deploy Failed: 'System.Threading.ThreadAbortException: Thread was being aborted.
+        // at Microsoft.Web.Deployment.NativeMethods.SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS fileInformationClass, FILE_BASIC_INFO&amp; baseInfo, Int32 nSize)
+        // Apparently it's because something else is causing the service
+        // to restart before this, and this get cut off
+            functionApp
+                .Deploy()
+                .WithPackageUri(blobUri)
+                .WithExistingDeploymentsDeleted(true)
+                .ExecuteAsync()
+
+        printfn "Deployed %s" functionApp.Name
+
         printfn "Updating app settings:\n%s"
                 (settings
                 |> Seq.map
@@ -149,24 +165,11 @@ module AppService =
                 |> String.concat "\n")
 
         let! functionApp =
+            // This supposedly triggers a restart
             functionApp
                 .Update()
                 .WithAppSettings(settings)
                 .ApplyAsync()
-
-        printfn "Deploying blob.."
-
-        let! deployment =
-        // This fails a lot?
-        // ARM-MSDeploy Deploy Failed: 'System.Threading.ThreadAbortException: Thread was being aborted.
-        // at Microsoft.Web.Deployment.NativeMethods.SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS fileInformationClass, FILE_BASIC_INFO&amp; baseInfo, Int32 nSize)
-            functionApp
-                .Deploy()
-                .WithPackageUri(blobUri)
-                .WithExistingDeploymentsDeleted(true)
-                .ExecuteAsync()
-
-        printfn "Deployed %s with blobUri: %s" functionApp.Name blobUri
 
         return deployment
 
