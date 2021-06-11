@@ -35,20 +35,32 @@ module App =
         let! q = CloudQueue<string>("myaznatq")
 
         let! map = CloudMap<string, string>("myaznatmap")
+        let! chats = CloudMap<string, string list>("mychatroom")
 
         let! lg = CloudLog()
 
         let! _task =
-            CloudTask("*/5 * * * * *",
+            CloudTask("0 * * * * *",
                 fun () -> async {
-                    lg.Info "Ran task 2"
+                    let! items = q.Dequeue 1
+
+                    for item in items do
+                        do! q.Enqueue [item + "boop"]
+
+                    if items.Length > 0 then
+                        lg.Info "Booped some snoots"
+                    else
+                        lg.Warn "No snoots to boop"
                 })
 
-        let getKey (req: RawRequest) =
-            let key = req.queries.["key"]
-            match key with
-            | [] -> None
-            | k::_rest -> Some k
+        let getFirstQuery param (req: RawRequest) =
+            match req.queries.TryGetValue param with
+            | true, values ->
+                match values with
+                | [] -> None
+                | k::_rest -> Some k
+            | false, _ ->
+                None
 
         do! routes {
             get "hi" (fun _ -> async {
@@ -66,7 +78,7 @@ module App =
             })
 
             get "val" (fun req -> async {
-                let key = getKey req
+                let key = getFirstQuery "key" req
                 match key with
                 | Some k ->
                     let! x = map.TryFind k
@@ -80,7 +92,7 @@ module App =
             })
 
             post "val" (fun req -> async {
-                let key = getKey req
+                let key = getFirstQuery "key" req
 
                 match key with
                 | Some k ->
@@ -97,6 +109,45 @@ module App =
 
                 | None ->
                     return ok "No key in queries"
+            })
+
+            get "chat" (fun req -> async {
+                let roomOpt = getFirstQuery "room" req
+                match roomOpt with
+                | Some room ->
+                    let! messagesOpt = chats.TryFind room
+                    match messagesOpt with
+                    | Some messages ->
+                        let formattedMessages =
+                            messages
+                            |> String.concat "\n"
+                            
+                        return ok <| sprintf "Got messages:\n%s" formattedMessages
+                    | None ->
+                        return ok <| sprintf "No messages in room %s" room
+                | None ->
+                    return ok <| "No room specified"
+            })
+
+            post "chat" (fun req -> async {
+                let roomOpt = getFirstQuery "room" req
+                match roomOpt with
+                | Some room ->
+                    let messageOpt = getFirstQuery "message" req
+                    match messageOpt with
+                    | None ->
+                        return ok <| "No message specified"
+                    | Some message ->
+                        let! messagesOpt = chats.TryFind room
+                        match messagesOpt with
+                        | None ->
+                            do! chats.Set(room, [message])
+                            return ok <| "Added message"
+                        | Some messages ->
+                            do! chats.Set(room, messages @ [message])
+                            return ok <| "Added message"
+                | None ->
+                    return ok <| "No room specified"
             })
         }
     }
@@ -133,6 +184,6 @@ let main argv =
     // NOTE this needs to launch (provision + deploy)
     printfn "Deploying"
 
-    AppOp.launchRouteState (fun routes -> printfn "App launched routes: %A" routes)
+    AppOp.launchRouteState (fun routes -> printfn "\n\nApp launched routes: %A" routes)
 
     0 // return an integer exit code
