@@ -97,13 +97,14 @@ type AzureProvider(appName, location) =
         for provision in provisionRequests do
             do! provision rgName saName
 
-        let! appPlan = AppService.createAppServicePlan appName rgName
+        let! appPlan = AppService.createAppServicePlan appName location rgName
 
         let! functionApp =
             AppService.createFunctionApp
                 appName
                 appPlan
                 rgName
+                saName
 
         printfn "Using function app: %s" functionApp.Name
 

@@ -46,16 +46,17 @@ module AppService =
         appName
         (appPlan: IAppServicePlan)
         (rgName: string)
+        (saName: string)
         = task {
+
+        let! storageAccount = azure.StorageAccounts.GetByResourceGroupAsync(rgName, saName)
 
         let! functionApp =
             azure.AppServices.FunctionApps
                 .Define(appName)
                 .WithExistingAppServicePlan(appPlan)
                 .WithExistingResourceGroup(rgName)
-                    // TODO
-                    // create a resourceGroup
-                    // set plan for resource group to be consumption
+                .WithExistingStorageAccount(storageAccount)
                 .CreateAsync()
 
         printfn "Created functionApp: %s on storage: %s"
@@ -68,22 +69,29 @@ module AppService =
 
     let createAppServicePlan
         appServicePlanName
+        (location: string)
         (rgName: string)
         = task {
+        let! existing =
+            azure.AppServices.AppServicePlans.GetByResourceGroupAsync
+                (rgName, appServicePlanName)
 
-        let! appServicePlan =
-            azure.AppServices.AppServicePlans
-                .Define(appServicePlanName)
-                .WithRegion(Region.USEast)
-                    // TODO non-fixed region
-                .WithExistingResourceGroup(rgName)
-                .WithConsumptionPricingTier()
-                .CreateAsync()
+        if existing <> null then
+            printfn "Using existing app service plan: %s" existing.Name
+            return existing
 
-        printfn "Using app service plan: %s" appServicePlan.Name
+        else
+            let! appServicePlan =
+                azure.AppServices.AppServicePlans
+                    .Define(appServicePlanName)
+                    .WithRegion(location)
+                    .WithExistingResourceGroup(rgName)
+                    .WithConsumptionPricingTier()
+                    .CreateAsync()
 
-        return appServicePlan
+            printfn "Using app service plan: %s" appServicePlan.Name
 
+            return appServicePlan
         }
 
     let deployFunctionApp
@@ -111,9 +119,11 @@ module AppService =
                 (settings
                 |> Seq.map
                     (fun (KeyValue(k,v)) ->
+#if !DEBUG
                         if k.Contains "ConnectionString" then
                             sprintf "%A = <connection string>" k
                         else
+#endif
                             sprintf "%A = %A" k v
                     )
                 |> String.concat "\n")
@@ -125,6 +135,9 @@ module AppService =
                 .ApplyAsync()
 
         let! deployment =
+        // This fails a lot?
+        // ARM-MSDeploy Deploy Failed: 'System.Threading.ThreadAbortException: Thread was being aborted.
+        // at Microsoft.Web.Deployment.NativeMethods.SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS fileInformationClass, FILE_BASIC_INFO&amp; baseInfo, Int32 nSize)
             functionApp
                 .Deploy()
                 .WithPackageUri(blobUri)
