@@ -100,3 +100,13 @@ Not sure which changes are triggering the restart though..
 
 Maybe creating the function app?
 I need the function app to deploy the blob.. I don't think I can create the functionapp with blob specified
+
+Logs from portal LogStream
+Looks like if host.json gets rewritten, that at least triggers a restart. Should only happen on deploy.
+
+2021-06-11T18:52:30.438 [Information] File change of type 'Changed' detected for 'C:\home\site\wwwroot\host.json'
+2021-06-11T18:52:30.439 [Information] Host configuration has changed. Signaling restart
+2021-06-11T18:52:30.439 [Information] File change of type 'Changed' detected for 'C:\home\site\wwwroot\host.json'
+2021-06-11T18:52:30.439 [Information] Host configuration has changed. Signaling restart
+2021-06-11T18:52:30.485 [Information] File change of type 'Changed' detected for 'C:\home\site\wwwroot\host.json'
+2021-06-11T18:52:30.485 [Information] Host configuration has changed. Signaling restart
