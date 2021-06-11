@@ -67,6 +67,26 @@ module AppService =
 
         }
 
+    let listAllFunctions (functionApp: IFunctionApp) = task {
+        let! functions = functionApp.ListFunctionsAsync()
+
+        let rec listAllFunctions pagedCollection = task {
+            if pagedCollection = null then
+                return ()
+            else
+                for (func: IFunctionEnvelope) in pagedCollection do
+                    printfn "Function: %s | %s"
+                        func.Name
+                        func.Type
+
+                let! next = functions.GetNextPageAsync()
+                return! listAllFunctions next
+        }
+
+        return! listAllFunctions functions
+    }
+        
+
     let createAppServicePlan
         appServicePlanName
         (location: string)
@@ -115,15 +135,15 @@ module AppService =
               "Kita_AzureNative_ConnectionString", kitaConnectionString
             ] |> dict
 
-        printfn "Using app settings:\n%s"
+        printfn "Updating app settings:\n%s"
                 (settings
                 |> Seq.map
                     (fun (KeyValue(k,v)) ->
-#if !DEBUG
+                        #if !DEBUG
                         if k.Contains "ConnectionString" then
                             sprintf "%A = <connection string>" k
                         else
-#endif
+                        #endif
                             sprintf "%A = %A" k v
                     )
                 |> String.concat "\n")
@@ -133,6 +153,8 @@ module AppService =
                 .Update()
                 .WithAppSettings(settings)
                 .ApplyAsync()
+
+        printfn "Deploying blob.."
 
         let! deployment =
         // This fails a lot?
@@ -144,7 +166,7 @@ module AppService =
                 .WithExistingDeploymentsDeleted(true)
                 .ExecuteAsync()
 
-        printfn "Deployed %s with %s" functionApp.Name blobUri
+        printfn "Deployed %s with blobUri: %s" functionApp.Name blobUri
 
         return deployment
 

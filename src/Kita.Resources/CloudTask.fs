@@ -4,12 +4,14 @@ open Kita.Core
 
 type ICloudTask =
     inherit CloudResource
-    abstract Exec : unit -> unit
-    abstract Stop : unit -> unit
+    abstract Chron : string
+    abstract Work : (unit -> Async<unit>)
 
 type CloudTaskProvider =
-    abstract Provide : Async<unit> -> ICloudTask
+    abstract Provide : string * (unit -> Async<unit>) -> ICloudTask
 
-type CloudTask(work: Async<unit>) =
+/// Use https://crontab.guru/ to check chron schedule expression format.
+// Not worth a dependency IMO.
+type CloudTask(chronSchExp: string, work: unit -> Async<unit>) =
     member _.Create (provider: #CloudTaskProvider) =
-        provider.Provide work
+        provider.Provide (chronSchExp, work)

@@ -17,9 +17,9 @@ type InjectableLogger =
     abstract SetLogger : Logger -> unit
 
 type AzureProvider(appName, location) =
-    let defaultLocation = "eastus"
-
+    let mutable cloudTasks = []
     let mutable provisionRequests = []
+
     let requestProvision provision =
         provisionRequests <- provision :: provisionRequests
 
@@ -44,6 +44,7 @@ type AzureProvider(appName, location) =
             (Path.Join(__SOURCE_DIRECTORY__, "ProxyFunctionApp"))
             conString
             appName
+            cloudTasks
 
     member _.Deploy (conString, functionApp, generatedZip: byte[]) = task {
         let blobs = Blobs(conString)
@@ -112,6 +113,8 @@ type AzureProvider(appName, location) =
 
         }
 
+    member _.CloudTasks = cloudTasks
+
     interface Provider with
         // FIXME enforce lowercase only
         // Same with queue names
@@ -148,12 +151,17 @@ type AzureProvider(appName, location) =
                         // is there some way around this?
 
                     let! deployment = this.Deploy(conString, functionApp, zipProject)
+                    printfn "Syncing triggers"
                     do! functionApp.SyncTriggersAsync()
 
                     let appUri = sprintf "https://%s" functionApp.DefaultHostName
                     printfn "Deployed app -- %s" appUri
+                    do! AppService.listAllFunctions functionApp
 
-                    let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "proxyKey", null)
+                    let proxyName = "Proxy"
+                    printfn "Adding key for proxy trigger: %s" proxyName
+
+                    let! funKey = functionApp.AddFunctionKeyAsync(proxyName, "devKey", null)
                     let appAccessKey = funKey.Value
 
                     printfn "Key -- %s | %s" funKey.Name funKey.Value
@@ -171,6 +179,9 @@ type AzureProvider(appName, location) =
             else
                 failwith "Connection string environment variable is missing, it needs to be set to run the Azure provider."
 
+    interface InjectableLogger with
+        member _.SetLogger lg = logger <- lg
+
     interface CloudQueueProvider with
         member _.Provide (name) =
             Resources.AzureCloudQueue
@@ -187,5 +198,26 @@ type AzureProvider(appName, location) =
                 , fun () -> requestProvision <| Storage.createMap name
                 ) :> ICloudMap<'K, 'V>
 
-    interface InjectableLogger with
-        member _.SetLogger lg = logger <- lg
+    interface CloudLogProvider with
+        // NOTE
+        // The logger will be the last set logger
+        // Meaning if it's used in a call which doesn't set the logger
+        // It will attribute the log to the previous request
+        // Could cause problems?
+        member _.Provide () =
+            { new ICloudLog with
+                member _.Info x = logger.Info x
+                member _.Warn x = logger.Warn x
+                member _.Error x = logger.Error x
+            }
+
+    interface CloudTaskProvider with
+        member _.Provide (chronExpr, work) =
+            let cloudTask =
+                { new ICloudTask with
+                    member _.Chron = chronExpr
+                    member _.Work = work }
+
+            cloudTasks <- cloudTask :: cloudTasks
+
+            cloudTask
