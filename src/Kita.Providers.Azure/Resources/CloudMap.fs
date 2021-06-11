@@ -79,7 +79,7 @@ type AzureCloudMap<'K, 'V>
                 |> System.Text.Encoding.UTF8.GetBytes
                 |> fun s -> new MemoryStream(s)
 
-            let! res = blob.UploadAsync content
+            let! res = blob.UploadAsync(content, true)
 
             return ()
         }
