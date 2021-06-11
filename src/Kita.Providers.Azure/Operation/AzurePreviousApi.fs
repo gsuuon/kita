@@ -48,23 +48,49 @@ module AppService =
         (rgName: string)
         (saName: string)
         = task {
-
-        let! storageAccount = azure.StorageAccounts.GetByResourceGroupAsync(rgName, saName)
-
-        let! functionApp =
+        let! existingFunctionApp =
             azure.AppServices.FunctionApps
-                .Define(appName)
-                .WithExistingAppServicePlan(appPlan)
-                .WithExistingResourceGroup(rgName)
-                .WithExistingStorageAccount(storageAccount)
-                .CreateAsync()
+                .GetByResourceGroupAsync(rgName, appName)
+            // NOTE
+            // Will there be a problem here if we change saName?
+            // We get existing based on only rgName and appName
 
-        printfn "Created functionApp: %s on storage: %s"
-            functionApp.Name
-            functionApp.StorageAccount.Name
+        if existingFunctionApp <> null then
+            printfn "Using existing functionApp: %s"
+                        existingFunctionApp.Name
 
-        return functionApp
+            return existingFunctionApp
+        else
+            let! storageAccount = azure.StorageAccounts.GetByResourceGroupAsync(rgName, saName)
 
+            let settings =
+                [ "WEBSITE_RUN_FROM_PACKAGE", "0"
+                    // WEBSITE_RUN_FROM_PACKAGE = 1 fails
+                    // During deployment, there's an attempt to
+                    // create a directory at wwwroot which fails because
+                    // it becomes read-only. Works fine if I use
+                    // the cli to upload the zip. Doesn't work if
+                    // I use the package uri here. Not sure what's up.
+                    // Check Notes.md for actual error.
+                  "SCM_DO_BUILD_DURING_DEPLOYMENT", "false"
+                  "FUNCTIONS_EXTENSION_VERSION", "~3"
+                  "FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated"
+                ] |> dict
+
+            let! functionApp =
+                azure.AppServices.FunctionApps
+                    .Define(appName)
+                    .WithExistingAppServicePlan(appPlan)
+                    .WithExistingResourceGroup(rgName)
+                    .WithExistingStorageAccount(storageAccount)
+                    .WithAppSettings(settings)
+                    .CreateAsync()
+
+            printfn "Created functionApp: %s on storage: %s"
+                functionApp.Name
+                functionApp.StorageAccount.Name
+
+            return functionApp
         }
 
     let listAllFunctions (functionApp: IFunctionApp) = task {
@@ -114,42 +140,10 @@ module AppService =
             return appServicePlan
         }
 
-    let deployFunctionApp
-        kitaConnectionString
-        blobUri
+    let updateFunctionAppSettings
         (functionApp: IFunctionApp)
+        settings
         = task {
-
-        let settings =
-            [ "WEBSITE_RUN_FROM_PACKAGE", "0"
-                // WEBSITE_RUN_FROM_PACKAGE = 1 fails
-                // During deployment, there's an attempt to
-                // create a directory at wwwroot which fails because
-                // it becomes read-only. Works fine if I use
-                // the cli to upload the zip. Doesn't work if
-                // I use the package uri here. Not sure what's up.
-                // Check Notes.md for actual error.
-              "SCM_DO_BUILD_DURING_DEPLOYMENT", "false"
-              "FUNCTIONS_EXTENSION_VERSION", "~3"
-              "FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated"
-              "Kita_AzureNative_ConnectionString", kitaConnectionString
-            ] |> dict
-
-        printfn "Deploying blob.."
-
-        let! deployment =
-        // This fails a lot?
-        // ARM-MSDeploy Deploy Failed: 'System.Threading.ThreadAbortException: Thread was being aborted.
-        // at Microsoft.Web.Deployment.NativeMethods.SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS fileInformationClass, FILE_BASIC_INFO&amp; baseInfo, Int32 nSize)
-        // Apparently it's because something else is causing the service
-        // to restart before this, and this get cut off
-            functionApp
-                .Deploy()
-                .WithPackageUri(blobUri)
-                .WithExistingDeploymentsDeleted(true)
-                .ExecuteAsync()
-
-        printfn "Deployed %s" functionApp.Name
 
         printfn "Updating app settings:\n%s"
                 (settings
@@ -170,6 +164,34 @@ module AppService =
                 .Update()
                 .WithAppSettings(settings)
                 .ApplyAsync()
+
+        printfn "Updated settings"
+
+        return functionApp
+
+        }
+
+    let deployFunctionApp
+        kitaConnectionString
+        blobUri
+        (functionApp: IFunctionApp)
+        = task {
+
+        printfn "Deploying blob.."
+
+        let! deployment =
+        // This fails a lot?
+        // ARM-MSDeploy Deploy Failed: 'System.Threading.ThreadAbortException: Thread was being aborted.
+        // at Microsoft.Web.Deployment.NativeMethods.SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS fileInformationClass, FILE_BASIC_INFO&amp; baseInfo, Int32 nSize)
+        // Apparently it's because something else is causing the service
+        // to restart before this, and this get cut off
+            functionApp
+                .Deploy()
+                .WithPackageUri(blobUri)
+                .WithExistingDeploymentsDeleted(true)
+                .ExecuteAsync()
+
+        printfn "Deployed %s" functionApp.Name
 
         return deployment
 
