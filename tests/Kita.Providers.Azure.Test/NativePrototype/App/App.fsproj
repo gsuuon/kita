@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <NoWarn>NU1605</NoWarn>
+    <!-- Detected package downgrade -->
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NativePrototype.fsproj" />
+    <ProjectReference Include="../../../../src/Kita/Kita.fsproj" />
+    <ProjectReference Include="../../../../src/Kita.Resources/Kita.Resources.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\..\..\.paket\Paket.Restore.targets" />
+</Project>

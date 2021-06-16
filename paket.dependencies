@@ -1,0 +1,25 @@
+source https://api.nuget.org/v3/index.json
+
+storage: none
+framework: netstandard2.0, net5.0
+
+nuget Expecto >= 9.0
+nuget Farmer 1.4.0
+nuget FSharp.Core 5.0.1
+nuget Giraffe 5.0.0-rc-6 rc
+nuget Microsoft.NET.Test.Sdk >= 16.0
+nuget ply 0.3.1
+nuget Azure.Identity 1.2.2
+nuget Azure.Storage.Blobs
+nuget Azure.Storage.Queues 12.6.0
+nuget Azure.ResourceManager.Storage
+nuget Azure.ResourceManager.Resources 1.0.0-preview.1 preview
+nuget Microsoft.Azure.Management.AppService.Fluent
+nuget Microsoft.Azure.Management.Fluent
+nuget Pulumi.Automation 2.23.0-alpha.1615392815 alpha
+nuget Pulumi.AzureNative
+nuget Pulumi.FSharp >= 2.0
+nuget Pulumi.FSharp.Azure 3.49.0.29
+nuget Pulumi.FSharp.AzureNative 0.7.1.2
+nuget Pulumi.FSharp.Core 2.0.15
+nuget YoloDev.Expecto.TestSdk

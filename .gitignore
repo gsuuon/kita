@@ -2,3 +2,10 @@ bin/
 obj/
 **/bin/
 **/obj/
+
+#Paket dependency manager
+.paket/
+paket-files/
+
+#Fake
+.fake/

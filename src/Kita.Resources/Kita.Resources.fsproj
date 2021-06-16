@@ -1,18 +1,17 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="../Kita.Providers/Kita.Providers.fsproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Include="Collections/CloudMap.fs" />
-        <Compile Include="Collections/CloudQueue.fs" />
-        <Compile Include="CloudLog.fs" />
-        <Compile Include="CloudTask.fs" />
-    </ItemGroup>
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Kita/Kita.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Utility.fs" />
+    <Compile Include="Collections/CloudMap.fs" />
+    <Compile Include="Collections/CloudQueue.fs" />
+    <Compile Include="CloudLog.fs" />
+    <Compile Include="CloudTask.fs" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -1,16 +1,17 @@
 namespace Kita.Resources
 
-open System.Threading.Tasks
-
 open Kita.Core
-open Kita.Resources
-open Kita.Providers
 
-type CloudTask(asyncWork: Async<unit>) =
-    member _.Deploy(az: Azure) =
-        printfn "Deploy: Azure Task as Function"
+type ICloudTask =
+    inherit CloudResource
+    abstract Chron : string
+    abstract Work : (unit -> Async<unit>)
 
-    interface CloudResource with
-        member _.CBind() = ()
-        member _.ReportDesiredState _c = ()
-        member _.BeginActivation _c = ()
+type CloudTaskProvider =
+    abstract Provide : string * (unit -> Async<unit>) -> ICloudTask
+
+/// Use https://crontab.guru/ to check chron schedule expression format.
+// Not worth a dependency IMO.
+type CloudTask(chronSchExp: string, work: unit -> Async<unit>) =
+    member _.Create (provider: #CloudTaskProvider) =
+        provider.Provide (chronSchExp, work)

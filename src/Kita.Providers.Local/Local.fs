@@ -1,7 +1,12 @@
 namespace Kita.Providers
 
-open Kita.Providers
+open Kita.Core
 
 type Local() =
-    inherit Provider("Local.Default")
-    member _.Initialize() = printfn "Initialize Local.Default"
+    interface Provider with
+        member _.Run () =
+            printfn "Running Local"
+        member _.Launch () =
+            printfn "Launching Local"
+
+

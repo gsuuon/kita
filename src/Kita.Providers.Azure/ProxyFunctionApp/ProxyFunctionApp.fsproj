@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <AzureFunctionsVersion>v3</AzureFunctionsVersion>
+    <OutputType>Exe</OutputType>
+    <_FunctionsSkipCleanOutput>true</_FunctionsSkipCleanOutput>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Kita_AppProjectReference -->
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../src/Kita/Kita.fsproj" />
+    <ProjectReference Include="../Kita.Providers.Azure.fsproj" />
+    <!-- TODO I feel like this should depend on AzureNative -->
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Adapt.fs" />
+    <Compile Include="AutoReplacedReference.fs" />
+    <Compile Include="TaskProxy.fs" />
+    <Compile Include="Proxy.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.0.12" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.1.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.0.1" OutputItemType="Analyzer" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.0.0" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions" Version="4.0.1" />
+    <PackageReference Include="Ply" Version="0.3.1" />
+    <PackageReference Include="System.IO.Pipelines" Version="5.0.1" />
+  </ItemGroup>
+  <Target Name="CopyRuntimes" AfterTargets="AfterBuild" Condition=" '$(OS)' == 'UNIX' ">
+    <!-- To workaround a bug where the files aren't copied correctly for non-Windows platforms -->
+    <Exec Command="rm -rf $(OutDir)bin/runtimes/* &amp;&amp; mkdir -p $(OutDir)bin/runtimes &amp;&amp; cp -R $(OutDir)runtimes/* $(OutDir)bin/runtimes/" />
+  </Target>
+  <ItemGroup>
+    <None Include="host.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="local.settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+</Project>

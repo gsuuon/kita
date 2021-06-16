@@ -1,24 +1,15 @@
 namespace Kita.Resources.Collections
 
 open Kita.Core
-open Kita.Resources
-open Kita.Providers
 
-type CloudMap<'K, 'V>() =
-    let activated = false
+type ICloudMap<'K, 'V> =
+    inherit CloudResource
+    abstract TryFind : 'K -> Async<'V option>
+    abstract Set : 'K * 'V -> Async<unit>
 
-    member private _.CreateInstance config = ()
-    member private _.UpdateInstance config = ()
-    member private _.Teardown config = ()
+type CloudMapProvider =
+    abstract Provide<'K, 'V> : string -> ICloudMap<'K, 'V>
 
-    member _.TryFind key =
-        async { return Unchecked.defaultof<'V> }
-
-    member _.Set(key, item) = ()
-
-    interface CloudResource with
-        member _.CBind() = ()
-        member _.ReportDesiredState _c = ()
-        member _.BeginActivation _c = ()
-
-    member _.Deploy(az: Azure) = printfn "Deploy: Azure Map"
+type CloudMap<'K, 'V>(name) =
+    member _.Create (p: #CloudMapProvider) =
+        p.Provide<'K, 'V> name

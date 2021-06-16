@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Utility.fs" />
+    <Compile Include="Operation/AzureNextApi.fs" />
+    <Compile Include="Operation/AzurePreviousApi.fs" />
+    <Compile Include="Operation/Client/Blobs.fs" />
+    <Compile Include="Operation/GenerateProject.fs" />
+    <Compile Include="Provider.fs" />
+    <Compile Include="Resource/Queue.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../src/Kita.Resources/Kita.Resources.fsproj" />
+    <ProjectReference Include="../../../src/Kita.Compile/Kita.Compile.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
+</Project>

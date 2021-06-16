@@ -1,21 +1,25 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="../Kita/Kita.fsproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="Azure.Identity" Version="1.2.2" />
-        <PackageReference Include="Azure.ResourceManager.Resources" Version="1.0.0-preview.1" />
-        <PackageReference Include="TaskBuilder.fs" Version="2.1.0" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Include="Azure.fs" />
-    </ItemGroup>
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Kita/Kita.fsproj" />
+    <ProjectReference Include="../Kita.Resources/Kita.Resources.fsproj" />
+    <ProjectReference Include="../Kita.Compile/Kita.Compile.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Compile.fs" />
+    <Compile Include="Operation/AzureNextApi.fs" />
+    <Compile Include="Operation/AzurePreviousApi.fs" />
+    <Compile Include="Operation/Client/Blobs.fs" />
+    <Compile Include="Operation/GenerateProject.fs" />
+    <Compile Include="Resources/Utility/Serializer.fs" />
+    <Compile Include="Resources/CloudQueue.fs" />
+    <Compile Include="Resources/CloudMap.fs" />
+    <Compile Include="AzureOperations.fs" />
+    <Compile Include="Azure.fs" />
+    <Compile Include="RunContext.fs" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

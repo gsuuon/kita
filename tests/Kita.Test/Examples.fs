@@ -12,7 +12,7 @@ let infra = infra'<Azure>
 
 let cloudAbout =
     infra "about" {
-        route "about" [ ok "this is kita" |> asyncReturn |> konst |> GET ] }
+        route "about" [ ok "this is kita" |> asyncReturn |> konst |> get ] }
 
 let cloudDebug (klog: CloudLog) =
     infra'<Local> "debug" {
@@ -23,7 +23,7 @@ let cloudDebug (klog: CloudLog) =
             [ ok "You found the admin route"
               |> asyncReturn
               |> konst
-              |> GET ]
+              |> get ]
     }
 
 let cloudProcs debug =
@@ -45,8 +45,8 @@ let cloudProcs debug =
 
         route
             "status"
-            [ GET
-              <| fun _ -> async { return { status = OK; body = "All good" } } ]
+            [ get <| fun _ ->
+                async { return { status = OK; body = "All good" } } ]
 
         nest (gated debug <| cloudDebug klog)
             // Conditional nesting, mixed provider
@@ -73,29 +73,27 @@ let cloudMain =
 
         route
             "save"
-            [ GET
-              <| fun req ->
+            [ get <| fun req ->
                   async {
                       match! saves.TryFind req.queries.["sid"] with
                       | Some s -> return { status = OK; body = s }
                       | None -> return { status = NOTFOUND; body = "🤷" }
                   }
 
-              POST
-              <| fun req ->
+              post <| fun req ->
                   async {
-                      pendingSaves.Enqueue req.body
+                      do! pendingSaves.Enqueue req.body
                       return { status = OK; body = "You're in" }
                   } ]
 
         route
             "sign_in"
-            [ POST
-              <| fun req ->
+            [ post <| fun req ->
                   async {
-                      if req.body.Length > 0 then
+                      match Seq.tryHead req.body with
+                      | Some _ ->
                           return { status = OK; body = "You're in" }
-                      else
+                      | None ->
                           return
                               { status = NOTFOUND
                                 body = "Who are you?" }
@@ -104,4 +102,26 @@ let cloudMain =
 
 let program debug =
     // Composing
-    Managed.empty () |> cloudProcs debug |> cloudMain
+    Managed.empty ()
+    |> (cloudProcs debug).Attach
+    (* |> cloudMain.Attach *)
+
+(*
+I'm not sure what composition actually gets me
+I can change the api to spit out the provider and managed
+composition would have to be only with the same providers, i think
+what are some use cases for composition?
+
+letting a block have access to resources of another block
+letting a block define resources within another block
+
+which use cases does composition cover that nesting doesn't?
+
+It's much easier to just put them together
+
+But i could just similarly create a helper that does this like
+[ list of things ] |> runThemAll
+
+One use case I could see is defining a block without a given Provider type
+and letting composition infer the type
+*)

@@ -1,18 +1,17 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <Compile Include="Providers/Provider.fs" />
-        <Compile Include="Resources/CloudResource.fs" />
-        <Compile Include="Core/Http.fs" />
-        <Compile Include="Core/HttpHelpers.fs" />
-        <Compile Include="Core/Infra/Managed.fs" />
-        <Compile Include="Core/Infra/State.fs" />
-        <Compile Include="Core/Infra/Infra.fs" />
-        <Compile Include="Operations.fs" />
-    </ItemGroup>
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Utility.fs" />
+    <Compile Include="Core/Block.fs" />
+    <Compile Include="Domains/DomainBuilder.fs" />
+    <Compile Include="Domains/Routes/Http.fs" />
+    <Compile Include="Domains/Routes.fs" />
+    <Compile Include="Domains/Procs.fs" />
+    <Compile Include="Run.fs" />
+    <Compile Include="Operations.fs" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
