@@ -13,6 +13,7 @@ open Kita.Providers.Azure.Client
 open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Operations
+open Kita.Providers.Azure.Resources
 
 type InjectableLogger =
     abstract SetLogger : Logger -> unit
@@ -140,3 +141,26 @@ type AzureProvider(appName, location) =
             cloudTasks <- cloudTask :: cloudTasks
 
             cloudTask
+
+    interface Definition.AzureWebPubSubProvider with
+        member this.Provide (name, config) =
+            Provision.AzureWebPubSub
+                ( name
+                , appName
+                , { location = location
+                    name = appName
+                    tier = config.tier
+                    skuName =
+                        match config.tier with
+                        | "free" ->
+                            "Free_F1"
+                        | tier ->
+                            failwithf
+                                "Don't know the skuName for tier %s"
+                                tier
+
+                    capacity = 1 }
+                , this.WebPubSubConString
+                )
+            :> Definition.IAzureWebPubSub
+        

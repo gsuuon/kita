@@ -1,27 +1,37 @@
 namespace Kita.Providers.Azure.Resources.Provision
 
+open FSharp.Control.Tasks
 open Azure.Messaging.WebPubSub
-open Kita.Providers.Azure.Resources.Definition
+
 open Kita.Utility
+open Kita.Providers.Azure.AzureNextApi
+open Kita.Providers.Azure.Resources.Definition
 
 type AzureWebPubSub
     (
-        name,
-        config: WebPubSubConfig,
+        hubName: string,
+        appName: string,
+        armParameters: WebPubSubArmParameters,
         webPubSubConStringWaiter: Waiter<string>
     ) =
-    // arm deploy
-    // one webpubsub service per app
-    // so name of webpubsubservice should be app
-    // name here is hub name
+    
+    let provisionRequest rgName _saName = task {
+        let! deployment =
+            Resources.createArmDeployment
+            <| rgName
+            <| appName
+            <| AzureWebPubSubTemplates.armTemplate
+            <| AzureWebPubSubTemplates.parameters armParameters
 
-    // get connectionstring
+        return ()
+    }
+
     interface IAzureWebPubSub with
         member _.Client =
             async {
                 let! conString = webPubSubConStringWaiter.GetAsync
                 
-                let client = new WebPubSubServiceClient(conString, name)
+                let client = new WebPubSubServiceClient(conString, hubName)
 
                 return client
             }

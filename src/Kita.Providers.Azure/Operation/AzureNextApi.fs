@@ -59,6 +59,26 @@ module Resources =
         return rg
         }
 
+    let createArmDeployment
+        rgName
+        deploymentName
+        (armTemplate: string)
+        (armParameters: string)
+        = task {
+
+        let deploymentProperties = new DeploymentProperties(DeploymentMode.Incremental)
+
+        deploymentProperties.Template <- armTemplate
+        deploymentProperties.Parameters <- armParameters
+
+        let deployment = new Deployment (deploymentProperties)
+
+        let! rawResult =
+            resourceClient.Deployments.StartCreateOrUpdateAsync(rgName, deploymentName, deployment)
+
+        return rawResult.Value
+
+        }
 
 module Storage =
     open Azure.ResourceManager.Storage
