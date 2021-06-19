@@ -112,20 +112,14 @@ type AzureProvider(appName, location) =
         member _.SetLogger lg = logger <- lg
 
     interface CloudQueueProvider with
-        member _.Provide (name) =
+        member _.Provide (name: string) =
             Resources.Provision.AzureCloudQueue
-                ( name
-                , connectionString
-                , (fun () -> requestProvision <| Storage.createQueue name)
-                ) :> ICloudQueue<_>
+                (name, requestProvision) :> ICloudQueue<_>
 
     interface CloudMapProvider with
-        member _.Provide<'K, 'V> name =
+        member _.Provide<'K, 'V> (name: string) =
             Resources.Provision.AzureCloudMap
-                ( name
-                , connectionString
-                , fun () -> requestProvision <| Storage.createMap name
-                ) :> ICloudMap<'K, 'V>
+                (name, requestProvision) :> ICloudMap<'K, 'V>
 
     interface CloudLogProvider with
         // NOTE
