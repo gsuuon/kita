@@ -30,6 +30,8 @@ module App =
     open Kita.Resources
     open Kita.Resources.Collections
 
+    open Kita.Providers.Azure.Resources.Definition
+
     let app =
         Block<AzureProvider, AppState> "myaznativeapp" {
 
@@ -48,6 +50,7 @@ module App =
 
         let! map = CloudMap<string, string>("myaznatmap")
         let! chats = CloudMap<string, ChatMessage list>("chats-typed1")
+        let! webPubSub = AzureWebPubSub("realtimechat")
 
         let! lg = CloudLog()
 
@@ -122,7 +125,7 @@ module App =
                     return ok "No key in queries"
             })
 
-            get "chat" (fun req -> async {
+            get "chat1" (fun req -> async {
                 let roomOpt = getFirstQuery "room" req
                 match roomOpt with
                 | Some room ->
@@ -141,7 +144,7 @@ module App =
                     return ok <| "No room specified"
             })
 
-            post "chat" (fun req -> async {
+            post "chat1" (fun req -> async {
                 let roomOpt = getFirstQuery "room" req
                 match roomOpt with
                 | Some room ->
@@ -164,6 +167,12 @@ module App =
                             return ok <| "Added message"
                 | None ->
                     return ok <| "No room specified"
+            })
+
+            get "chat2" (fun req -> async {
+                let! wpsClient = webPubSub.Client
+                let uri = wpsClient.GetClientAccessUri("admin", [|""|])
+                return ok <| sprintf "Client access uri: %s" uri.AbsoluteUri
             })
         }
     }

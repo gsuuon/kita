@@ -2,7 +2,10 @@ namespace Kita.Providers.Azure.Resources.Definition
 
 open Azure.Messaging.WebPubSub
 
+open Kita.Core
+
 type IAzureWebPubSub =
+    inherit CloudResource
     abstract Client : WebPubSubServiceClient Async
 
 type WebPubSubConfig =
