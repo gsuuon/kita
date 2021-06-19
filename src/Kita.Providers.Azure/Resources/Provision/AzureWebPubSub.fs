@@ -7,15 +7,15 @@ open Azure.Messaging.WebPubSub
 open Kita.Utility
 open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Resources.Definition
+open Kita.Providers.Azure.Activation
 
-type AzureWebPubSub (hubName: string) =
-    let webPubSubConStringWaiter = Waiter<string>()
+type AzureWebPubSub (hubName: string, appName: string) =
+    let envVarName = "Kita_Azure_WebPubSub_ConString_" + appName
 
-    let envVarName appName =
-        "Kita_Azure_WebPubSub_ConString_" + appName
+    let client = new WebPubSubServiceClient(getVariable envVarName,
+                                            hubName)
 
     member _.ProvisionRequest 
-        (appName: string)
         (armParameters: WebPubSubArmParameters)
         =
         fun rgName _saName -> task {
@@ -41,15 +41,8 @@ type AzureWebPubSub (hubName: string) =
             printfn "AzureWebPubSub outputs:\n%s" primaryConString
 
             return
-                Some (envVarName appName, primaryConString)
+                Some (envVarName, primaryConString)
         }
 
     interface IAzureWebPubSub with
-        member _.Client =
-            async {
-                let! conString = webPubSubConStringWaiter.GetAsync
-                
-                let client = new WebPubSubServiceClient(conString, hubName)
-
-                return client
-            }
+        member _.Client = client

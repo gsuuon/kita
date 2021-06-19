@@ -6,7 +6,7 @@ open Kita.Core
 
 type IAzureWebPubSub =
     inherit CloudResource
-    abstract Client : WebPubSubServiceClient Async
+    abstract Client : WebPubSubServiceClient
 
 type WebPubSubConfig =
     { tier : string

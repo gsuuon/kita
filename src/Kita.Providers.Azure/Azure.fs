@@ -147,11 +147,10 @@ type AzureProvider(appName, location) =
 
     interface Definition.AzureWebPubSubProvider with
         member this.Provide (name, config) =
-            let awps = Provision.AzureWebPubSub(name)
+            let awps = Provision.AzureWebPubSub(name, appName)
 
             requestProvision 
             <| awps.ProvisionRequest
-                appName
                 { location = location
                   name = appName
                   tier = config.tier
