@@ -1,4 +1,4 @@
-namespace Kita.Providers.Azure.Resources
+namespace Kita.Providers.Azure.Resources.Provision
 
 open System.IO
 open FSharp.Control.Tasks

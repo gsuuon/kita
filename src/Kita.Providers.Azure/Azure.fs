@@ -102,7 +102,7 @@ type AzureProvider(appName, location) =
 
     interface CloudQueueProvider with
         member _.Provide (name) =
-            Resources.AzureCloudQueue
+            Resources.Provision.AzureCloudQueue
                 ( name
                 , connectionString
                 , (fun () -> requestProvision <| Storage.createQueue name)
@@ -110,7 +110,7 @@ type AzureProvider(appName, location) =
 
     interface CloudMapProvider with
         member _.Provide<'K, 'V> name =
-            Resources.AzureCloudMap
+            Resources.Provision.AzureCloudMap
                 ( name
                 , connectionString
                 , fun () -> requestProvision <| Storage.createMap name
