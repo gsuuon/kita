@@ -8,6 +8,7 @@ open Kita.Utility
 open Kita.Resources.Utility
 open Kita.Resources.Collections
 open Kita.Providers.Azure.Client
+open Kita.Providers.Azure.Resources.Utility
 
 type AzureCloudMap<'K, 'V>
     (
@@ -44,7 +45,7 @@ type AzureCloudMap<'K, 'V>
             name,
             conStringWaiter,
             requestProvision,
-            Utility.Serializer.json
+            Serializer.json
         )
 
     interface ICloudMap<'K, 'V> with

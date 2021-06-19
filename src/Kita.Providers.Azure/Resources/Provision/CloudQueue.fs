@@ -8,6 +8,7 @@ open Kita.Utility
 open Kita.Resources.Utility
 open Kita.Resources.Collections
 open Kita.Providers.Azure.Client
+open Kita.Providers.Azure.Resources.Utility
 
 open System.Text.Json
 
@@ -44,7 +45,7 @@ type AzureCloudQueue<'T>
             ( name
             , conStringWaiter
             , requestProvision
-            , Utility.Serializer.json
+            , Serializer.json
             )
 
     interface ICloudQueue<'T> with
