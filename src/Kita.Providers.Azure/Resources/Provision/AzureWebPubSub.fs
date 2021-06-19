@@ -11,6 +11,9 @@ open Kita.Providers.Azure.Resources.Definition
 type AzureWebPubSub (hubName: string) =
     let webPubSubConStringWaiter = Waiter<string>()
 
+    let envVarName appName =
+        "Kita_Azure_WebPubSub_ConString_" + appName
+
     member _.ProvisionRequest 
         (appName: string)
         (armParameters: WebPubSubArmParameters)
@@ -37,10 +40,8 @@ type AzureWebPubSub (hubName: string) =
 
             printfn "AzureWebPubSub outputs:\n%s" primaryConString
 
-            webPubSubConStringWaiter.Set primaryConString
-            // Need to stick the connection string into app settings
-
-            return ()
+            return
+                Some (envVarName appName, primaryConString)
         }
 
     interface IAzureWebPubSub with
