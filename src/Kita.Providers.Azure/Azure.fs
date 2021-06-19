@@ -1,6 +1,7 @@
 ﻿namespace Kita.Providers.Azure
 
 open System.IO
+open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Kita.Core
@@ -53,8 +54,17 @@ type AzureProvider(appName, location) =
         
     member _.ExecuteProvisionRequests (rgName, saName) = task {
         printfn "Provisioning resources"
-        for provision in provisionRequests do
-            do! provision rgName saName
+
+        let! envVariables =
+            provisionRequests
+            |> List.map (fun req -> req rgName saName)
+            |> Task.WhenAll<(string * string) option>
+
+        return
+            envVariables
+            |> Array.choose id
+            |> Array.toSeq
+
         }
 
     member _.CloudTasks = cloudTasks

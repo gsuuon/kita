@@ -49,7 +49,7 @@ let provision
     location
     cloudTasks
     (executeProvisionRequests:
-        string * string -> Task<unit>)
+        string * string -> Task<(string * string) seq>)
     = task {
 
     let! (conString, rgName, saName) =
@@ -70,7 +70,7 @@ let provision
         // but we're only trying to copy
         // is there some way around this?
 
-    execProvisionRequestsWork.Wait()
+    let! environmentVariablesFromResourceProvisions = execProvisionRequestsWork
     printfn "Finished provisioning resources"
 
     let blobUriWork = uploadZipGetBlobSas conString zipProject
@@ -79,7 +79,10 @@ let provision
     let! functionApp = AppService.createFunctionApp appName appPlan rgName saName
     let! deployment = AppService.deployFunctionApp conString blobUri functionApp
     let! updatedFunctionApp =
-        [ "Kita_AzureNative_ConnectionString", conString ]
+        seq {
+            yield! environmentVariablesFromResourceProvisions
+            yield "Kita_AzureNative_ConnectionString", conString
+        }
         |> dict
         |> AppService.updateFunctionAppSettings functionApp
 
