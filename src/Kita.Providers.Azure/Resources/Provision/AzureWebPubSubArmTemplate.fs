@@ -10,9 +10,6 @@ type WebPubSubArmParameters =
 
 module AzureWebPubSubTemplates =
     let parameters (wpsParams: WebPubSubArmParameters) = $"""{{
-    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters":
         "location": {{
             "value": "{wpsParams.location}"
         }},
@@ -69,7 +66,7 @@ module AzureWebPubSubTemplates =
     ],
     "outputs": {
         "primaryConString" : {
-            "type":"securestring",
+            "type":"string",
             "value":"[listKeys(parameters('name'), '2021-04-01-preview').primaryConnectionString]"
         }
     }

@@ -59,6 +59,13 @@ module Resources =
         return rg
         }
 
+    /// armParameters should be json string of JUST THE PARAMETERS.
+    /// Do not include $schema, contentVersion, etc.; e.g.
+    /// {
+    ///   "param1" : {
+    ///       "value" : "myvalue"
+    ///    }
+    /// }
     let createArmDeployment
         rgName
         deploymentName
@@ -68,15 +75,29 @@ module Resources =
 
         let deploymentProperties = new DeploymentProperties(DeploymentMode.Incremental)
 
+        printfn "ARM Deployment %s template:\n%s"
+            deploymentName
+            armTemplate
+
+        printfn "ARM Deployment %s parameters:\n%s"
+            deploymentName
+            armParameters
+
         deploymentProperties.Template <- armTemplate
         deploymentProperties.Parameters <- armParameters
 
-        let deployment = new Deployment (deploymentProperties)
+        let! operation =
+            resourceClient.Deployments.StartCreateOrUpdateAsync
+                ( rgName
+                , deploymentName
+                , new Deployment (deploymentProperties)
+                )
 
-        let! rawResult =
-            resourceClient.Deployments.StartCreateOrUpdateAsync(rgName, deploymentName, deployment)
+        let! rawResult = operation.WaitForCompletionAsync()
 
-        return rawResult.Value
+        let deployment = rawResult.Value
+
+        return deployment
 
         }
 

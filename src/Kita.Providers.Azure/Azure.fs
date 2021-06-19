@@ -37,7 +37,6 @@ type AzureProvider(appName, location) =
     let mutable launched = false
         // FIXME rework launch/run so this isn't necessary
 
-    member val WebPubSubConString = Waiter<string>()
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 
@@ -144,23 +143,24 @@ type AzureProvider(appName, location) =
 
     interface Definition.AzureWebPubSubProvider with
         member this.Provide (name, config) =
-            Provision.AzureWebPubSub
-                ( name
-                , appName
-                , { location = location
-                    name = appName
-                    tier = config.tier
-                    skuName =
-                        match config.tier with
-                        | "free" ->
-                            "Free_F1"
-                        | tier ->
-                            failwithf
-                                "Don't know the skuName for tier %s"
-                                tier
+            let awps = Provision.AzureWebPubSub(name)
 
-                    capacity = 1 }
-                , this.WebPubSubConString
-                )
-            :> Definition.IAzureWebPubSub
+            requestProvision 
+            <| awps.ProvisionRequest
+                appName
+                { location = location
+                  name = appName
+                  tier = config.tier
+                  skuName =
+                      match config.tier with
+                      | "free" ->
+                          "Free_F1"
+                      | tier ->
+                          failwithf
+                              "Don't know the skuName for tier %s"
+                              tier
+                  capacity = 1
+                }
+
+            awps :> Definition.IAzureWebPubSub
         
