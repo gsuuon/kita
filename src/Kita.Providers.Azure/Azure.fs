@@ -36,6 +36,7 @@ type AzureProvider(appName, location) =
     let mutable launched = false
         // FIXME rework launch/run so this isn't necessary
 
+    member val WebPubSubConString = Waiter<string>()
     member val WaitConnectionString = connectionString
     member val OnConnection = connectionString.OnSet
 

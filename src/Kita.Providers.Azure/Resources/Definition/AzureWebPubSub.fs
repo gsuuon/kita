@@ -3,7 +3,7 @@ namespace Kita.Providers.Azure.Resources.Definition
 open Azure.Messaging.WebPubSub
 
 type IAzureWebPubSub =
-    abstract Client : WebPubSubServiceClient
+    abstract Client : WebPubSubServiceClient Async
 
 type WebPubSubConfig =
     { tier : string
