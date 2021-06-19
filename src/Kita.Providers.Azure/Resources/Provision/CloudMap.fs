@@ -14,11 +14,12 @@ open Kita.Providers.Azure.Resources.Utility
 
 type AzureCloudMap<'K, 'V>
     (
-        client: BlobContainerClient,
+        blobContainerClient: Waiter<BlobContainerClient>,
         serializer: Serializer<string>
     ) =
 
     let getBlob key = task {
+        let! client = blobContainerClient.GetTask
         let blobName = serializer.Serialize key
         return client.GetBlobClient blobName
     }
@@ -30,8 +31,10 @@ type AzureCloudMap<'K, 'V>
         ) =
         requestProvision <| noEnv (Storage.createMap name)
 
-        let conString = getVariable AzureConnectionStringVarName
-        let blobContainerClient = BlobContainerClient(conString, name)
+        let blobContainerClient =
+            produceWithEnv
+            <| AzureConnectionStringVarName
+            <| fun conString -> BlobContainerClient(conString, name)
 
         AzureCloudMap(blobContainerClient, serializer)
         

@@ -3,10 +3,11 @@ namespace Kita.Providers.Azure.Resources.Definition
 open Azure.Messaging.WebPubSub
 
 open Kita.Core
+open Kita.Utility
 
 type IAzureWebPubSub =
     inherit CloudResource
-    abstract Client : WebPubSubServiceClient
+    abstract Client : Waiter<WebPubSubServiceClient>
 
 type WebPubSubConfig =
     { tier : string

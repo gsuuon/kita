@@ -16,7 +16,7 @@ open System.Text.Json
 
 type AzureCloudQueue<'T>
     (
-        client: QueueClient,
+        client: Waiter<QueueClient>,
         serializer: Serializer<string>
     ) =
 
@@ -28,7 +28,10 @@ type AzureCloudQueue<'T>
         requestProvision <| noEnv (Storage.createQueue name)
 
         let conString = getVariable AzureConnectionStringVarName
-        let queueClient = QueueClient(conString, name)
+        let queueClient =
+            produceWithEnv
+            <| AzureConnectionStringVarName
+            <| fun conString -> QueueClient(conString, name)
 
         AzureCloudQueue (queueClient, serializer)
 
@@ -46,6 +49,7 @@ type AzureCloudQueue<'T>
         member _.Enqueue xs = async {
             do! Async.AwaitTask
                 <| task {
+                    let! client = client.GetTask
                     for x in xs do
                         let jsonX =  x
                         let! sendReceiptRes =
@@ -65,6 +69,7 @@ type AzureCloudQueue<'T>
 
         member _.Dequeue count = async {
             // TODO send read receipt to actually dequeue messages
+            let! client = client.GetAsync
             let! rMsgs =
                 client.ReceiveMessagesAsync count
                 |> Async.AwaitTask

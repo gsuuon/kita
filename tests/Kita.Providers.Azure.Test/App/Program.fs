@@ -170,7 +170,7 @@ module App =
             })
 
             get "chat2" (fun req -> async {
-                let! wpsClient = webPubSub.Client
+                let! wpsClient = webPubSub.Client.GetAsync
                 let uri = wpsClient.GetClientAccessUri("admin", [|""|])
                 return ok <| sprintf "Client access uri: %s" uri.AbsoluteUri
             })

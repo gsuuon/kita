@@ -12,8 +12,11 @@ open Kita.Providers.Azure.Activation
 type AzureWebPubSub (hubName: string, appName: string) =
     let envVarName = "Kita_Azure_WebPubSub_ConString_" + appName
 
-    let client = new WebPubSubServiceClient(getVariable envVarName,
-                                            hubName)
+    let client =
+        produceWithEnv
+        <| envVarName
+        <| fun conString ->
+            new WebPubSubServiceClient(conString, hubName)
 
     member _.ProvisionRequest 
         (armParameters: WebPubSubArmParameters)
