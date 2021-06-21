@@ -5,8 +5,10 @@
     <TargetFramework>net5.0</TargetFramework>
     <NoWarn>NU1605</NoWarn>
     <!-- Detected package downgrade -->
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="App.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
