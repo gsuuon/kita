@@ -252,11 +252,24 @@ module GenerateProject =
 
             proc.WaitForExit()
             if proc.ExitCode <> 0 then
-                let errs = proc.StandardError.ReadToEnd()
+
+                let errs =
+                    proc.StandardError.ReadToEnd()
+
+                let output =
+                    lines |> String.concat "\n"
+
+                let explanation =
+                    if lines.Contains "being used by another process" then
+                        "Explanation: might be because the publish task for the proxy project is trying to copy project reference assemblies (like this one running currently) to output folders. Build this project first, then run again to avoid the copy step of the project reference."
+                    else
+                        ""
+
                 failwithf
-                    "Publish failed!\n%s\n%s"
+                    "Publish failed! %s\n%s\n%s"
+                        explanation
                         errs
-                        (lines |> String.concat "\n")
+                        output
 
             printfn "Finished publish"
 
