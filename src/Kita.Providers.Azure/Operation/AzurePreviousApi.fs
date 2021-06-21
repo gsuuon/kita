@@ -64,15 +64,7 @@ module AppService =
             let! storageAccount = azure.StorageAccounts.GetByResourceGroupAsync(rgName, saName)
 
             let settings =
-                [ "WEBSITE_RUN_FROM_PACKAGE", "0"
-                    // WEBSITE_RUN_FROM_PACKAGE = 1 fails
-                    // During deployment, there's an attempt to
-                    // create a directory at wwwroot which fails because
-                    // it becomes read-only. Works fine if I use
-                    // the cli to upload the zip. Doesn't work if
-                    // I use the package uri here. Not sure what's up.
-                    // Check Notes.md for actual error.
-                  "SCM_DO_BUILD_DURING_DEPLOYMENT", "false"
+                [ "SCM_DO_BUILD_DURING_DEPLOYMENT", "false"
                   "FUNCTIONS_EXTENSION_VERSION", "~3"
                   "FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated"
                 ] |> dict
@@ -112,7 +104,6 @@ module AppService =
         return! listAllFunctions functions
     }
         
-
     let createAppServicePlan
         appServicePlanName
         (location: string)
@@ -179,20 +170,22 @@ module AppService =
 
         printfn "Deploying blob.."
 
-        let! deployment =
+        let! update =
         // This fails a lot?
         // ARM-MSDeploy Deploy Failed: 'System.Threading.ThreadAbortException: Thread was being aborted.
         // at Microsoft.Web.Deployment.NativeMethods.SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS fileInformationClass, FILE_BASIC_INFO&amp; baseInfo, Int32 nSize)
         // Apparently it's because something else is causing the service
         // to restart before this, and this get cut off
             functionApp
-                .Deploy()
-                .WithPackageUri(blobUri)
-                .WithExistingDeploymentsDeleted(true)
-                .ExecuteAsync()
+                .Update()
+                .WithAppSettings(
+                    [ "WEBSITE_RUN_FROM_PACKAGE", blobUri ]
+                    |> dict
+                )
+                .ApplyAsync()
 
         printfn "Deployed %s" functionApp.Name
 
-        return deployment
+        return update
 
         }

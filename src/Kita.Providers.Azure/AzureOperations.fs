@@ -77,19 +77,40 @@ let provision
     let! appPlan = AppService.createAppServicePlan appName location rgName
     let! blobUri = blobUriWork
     let! functionApp = AppService.createFunctionApp appName appPlan rgName saName
-    let! deployment = AppService.deployFunctionApp conString blobUri functionApp
+
+    printfn "Stopping function app"
+    do! functionApp.StopAsync()
+    printfn "Stopped function app"
+
     let! updatedFunctionApp =
         seq {
             yield! environmentVariablesFromResourceProvisions
             yield "Kita_AzureNative_ConnectionString", conString
+            yield "WEBSITE_RUN_FROM_PACKAGE", blobUri 
         }
         |> dict
         |> AppService.updateFunctionAppSettings functionApp
 
     printfn "Deployed app: %s" functionApp.Name
 
-    printfn "Syncing triggers"
-    do! functionApp.SyncTriggersAsync()
+    printfn "Starting function app"
+    do! functionApp.StartAsync()
+    printfn "Started function app"
+
+    try
+        printfn "Syncing triggers"
+        do! functionApp.SyncTriggersAsync()
+        printfn "Synced triggers"
+    with
+    | x ->
+        let asString = x.ToString()
+        let explain =
+            if asString.Contains "BadRequest" then
+                "BadRequest error could mean Azure services are having issues, triggers may still be correct (and stale below) - check the portal"
+            else
+                ""
+
+        printfn "Failed to sync triggers:\n%s\n%s" explain asString
 
     do! AppService.listAllFunctions functionApp
 
