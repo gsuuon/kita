@@ -28,13 +28,13 @@ let noEnv provision rg sa = task {
 let produceWithEnv envName withEnv =
     let waiter = Waiter()
 
-    (task {
+    task {
         let varWaiter = getVariable envName
         let! envValue = varWaiter.GetTask
 
         waiter.Set <| withEnv envValue
         return waiter
-    }).Start()
+    } |> ignore // tasks not using `new Task` are hot
 
     waiter
         
