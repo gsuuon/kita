@@ -164,10 +164,30 @@ let app =
                 return ok <| "No room specified"
         })
 
-        get "chat2" (fun req -> async {
+        get "chat" (fun req -> async {
             let! wpsClient = webPubSub.Client.GetAsync
-            let uri = wpsClient.GetClientAccessUri("admin", [|""|])
-            return ok <| sprintf "Client access uri: %s" uri.AbsoluteUri
+            match getFirstQuery "userId" req with
+            | Some userId ->
+                let roomPermissions =
+                    match getFirstQuery "rooms" req with
+                    | Some rooms ->
+                        rooms.Split(" ")
+                        |> Array.map (fun room -> [| "webpubsub.joinLeaveGroup."+room;  "webpubsub.sendToGroup."+room |])
+                        |> Array.concat
+                    | None ->
+                        [||]
+
+                let uri = wpsClient.GetClientAccessUri(userId, roomPermissions)
+                return ok <| sprintf "Client access uri: %s" uri.AbsoluteUri
+            | None ->
+                return ok "Missing userId query param"
+        })
+
+        post "chat" (fun req -> async {
+            let! wpsClient = webPubSub.Client.GetAsync
+            let message = readBody req
+            wpsClient.SendToAll message |> ignore
+            return ok <| sprintf "Sent message to all: %s" message
         })
     }
 }
