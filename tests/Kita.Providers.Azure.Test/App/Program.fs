@@ -11,14 +11,17 @@ module Operation =
 
     let provider = AzureProvider("myaznativeapp", "eastus")
     let attachedApp = app |> Operation.attach provider
-    let runRouteState withDomain =
-        attachedApp |> Routes.Operation.runRoutes routesDomain withDomain
 
     [<AzureRunModuleFor("myaznativeapp")>]
     type AzureRunner() =
         interface AzureRunModule<AppState> with
             member _.Provider = provider
-            member _.RunRouteState x = runRouteState x
+
+            member _.RunRouteState withDomain =
+                attachedApp |> Routes.Operation.runRoutes routesDomain withDomain
+
+            member _.RunAuthedRouteState withDomain =
+                attachedApp |> Routes.Operation.runRoutes authedRoutesDomain withDomain
 
     // Does it make more sense to run / launch, and _then_ do work on domains?
     // In the proxy project, if I run routes then run logs, I'd need to remember
