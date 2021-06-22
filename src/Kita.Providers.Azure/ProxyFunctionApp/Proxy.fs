@@ -27,7 +27,7 @@ module Proxy =
 
     let runModule = ProxyApp.AutoReplacedReference.runModule :> AzureRunModule<_>
 
-    let notFoundHandler req : Async<RawResponse> =
+    let notFoundHandler _req : Async<RawResponse> =
         async { return { body = "Not found :("; status = NOTFOUND } }
 
     let injectLog (lg: ILogger) =

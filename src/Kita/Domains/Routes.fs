@@ -15,10 +15,6 @@ type RouteState =
     static member Empty =
         { routes = Map.empty }
 
-module private Helper =
-    let canonMethod (httpMethodString: string) =
-        httpMethodString.ToLower()
-
 module RouteState =
     let addRoute routeAddress handler (routeState: RouteState) =
         { routeState with
@@ -68,7 +64,7 @@ type RoutesBlock<'U>(userDomain)
         addHandler rCtx getMethod getPath getHandler
 
     [<CustomOperation("post", MaintainsVariableSpaceUsingBind=true)>]
-    member this.Post
+    member _.Post
         (
             rCtx,
             [<ProjectionParameter>] getPath,
@@ -77,7 +73,7 @@ type RoutesBlock<'U>(userDomain)
         addHandler rCtx (konst "post") getPath getHandler
 
     [<CustomOperation("get", MaintainsVariableSpaceUsingBind=true)>]
-    member this.Get
+    member _.Get
         (
             rCtx,
             [<ProjectionParameter>] getPath,

@@ -135,7 +135,7 @@ type AzureProvider(appName, location) =
             cloudTask
 
     interface Definition.AzureWebPubSubProvider with
-        member this.Provide (name, config) =
+        member _.Provide (name, config) =
             let awps = Provision.AzureWebPubSub(name, appName)
 
             requestProvision 
