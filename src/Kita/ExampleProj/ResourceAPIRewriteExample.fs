@@ -33,7 +33,7 @@ type LogResource() =
 
 type FooProvider() =
     interface Provider with
-        member _.Run () = ()
+        member _.Activate () = ()
         member _.Launch () = ()
 
     interface ValResourceProvider with

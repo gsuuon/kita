@@ -100,7 +100,7 @@ type AzureProvider(appName, location) =
 
                 work.Wait()
 
-        member this.Run () =
+        member this.Activate () =
             let conString = System.Environment.GetEnvironmentVariable "Kita_AzureNative_ConnectionString"
 
             if conString <> null then

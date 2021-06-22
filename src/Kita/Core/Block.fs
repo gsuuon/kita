@@ -7,11 +7,11 @@ type Provider =
     /// Called for every block this provider is attached to
     abstract member Launch : unit -> unit
 
-    /// Runs (activates and unblocks) resources
+    /// Activates (unblocks) resources
     /// Should extract necessary information from environment (e.g. connection string)
     /// Only called when running the block (not when launching)
     /// Called for every block this provider is attached to
-    abstract member Run : unit -> unit
+    abstract member Activate : unit -> unit
 
 type CloudResource = interface end
 
@@ -154,7 +154,7 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
                         nestedAttached.launch withAppState)
 
               run = fun withAppState ->
-                attached.provider.Run()
+                attached.provider.Activate()
                 withAppState attached.user
 
                 managed.nested

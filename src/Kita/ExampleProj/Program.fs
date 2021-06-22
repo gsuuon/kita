@@ -41,7 +41,7 @@ module Providers =
         interface Provider with
             member _.Launch () =
                 sayLaunched "Foo"
-            member _.Run () = ()
+            member _.Activate () = ()
 
         interface ValResourceProvider with
             member _.Provide x =
@@ -59,7 +59,7 @@ module Providers =
         interface Provider with
             member _.Launch () =
                 sayLaunched "Bar"
-            member _.Run () = ()
+            member _.Activate () = ()
 
         interface LogResourceProvider with
             member _.Provide () =

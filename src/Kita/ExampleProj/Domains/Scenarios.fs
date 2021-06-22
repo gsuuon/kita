@@ -9,7 +9,7 @@ module ScenarioCommon =
     type AProvider() =
         interface Provider with
             member _.Launch () = ()
-            member _.Run () = ()
+            member _.Activate () = ()
 
     type AResource() =
         interface CloudResource
