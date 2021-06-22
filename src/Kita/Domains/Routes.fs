@@ -96,17 +96,6 @@ module Operation =
 
         member _.RouteState = { routes = routes }
 
-    let launchRoutes
-        (routesDomain: UserDomain<'U, RouteState>)
-        withRouteState
-        app
-        =
-        let routesCollector = RoutesCollector()
-
-        app.launch (routesDomain.get >> routesCollector.Collect)
-
-        withRouteState routesCollector.RouteState
-
     let runRoutes
         (routesDomain: UserDomain<'U, RouteState>)
         withRouteState

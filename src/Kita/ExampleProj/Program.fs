@@ -258,9 +258,15 @@ module NestScenario =
 
     let launch withRoutes =
         printfn "Starting attach"
-        let attached = main |> Operation.attach (FooProvider())
+        let attached =
+            main
+            |> Operation.attach (FooProvider())
         printfn "Finished attach"
-        attached |> Routes.Operation.launchRoutes routesDomain withRoutes
+
+        attached.launch()
+
+        attached
+        |> Routes.Operation.runRoutes routesDomain withRoutes
     
 [<EntryPoint>]
 let main _argv =

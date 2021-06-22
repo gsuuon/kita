@@ -30,10 +30,12 @@ module Operation =
     // idempotent, which it currently is but is not guaranteed to stay that way.
 
     let launchRouteState withDomain =
-        attachedApp |> Routes.Operation.launchRoutes routesDomain withDomain
+        attachedApp.launch()
+        attachedApp
+        |> Routes.Operation.runRoutes routesDomain withDomain
 
 [<EntryPoint>]
-let main argv =
+let main _argv =
     // NOTE this needs to launch (provision + deploy)
     printfn "Deploying"
 

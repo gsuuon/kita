@@ -26,7 +26,7 @@ and AttachedBlock<'U> =
     { name : string
       userState : 'U
       managed : Managed<'U>
-      launch : ('U -> unit) -> unit
+      launch : unit -> unit
       run : ('U -> unit) -> unit
       path : string list }
 
@@ -143,15 +143,14 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
             { name = block.Name
               managed = managed
               userState = attached.user
-              launch = fun withAppState ->
+              launch = fun () ->
                 printfn "Launching block: %s" block.Name
                 attached.provider.Launch()
-                withAppState attached.user
 
                 managed.nested
                 |> Map.iter
-                    (fun name nestedAttached ->
-                        nestedAttached.launch withAppState)
+                    (fun _name nestedAttached ->
+                        nestedAttached.launch() )
 
               run = fun withAppState ->
                 attached.provider.Activate()
