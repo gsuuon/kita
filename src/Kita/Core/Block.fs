@@ -5,7 +5,7 @@ type Provider =
     /// Provisions and deploys resources
     /// Provider will have been attached to every block already
     /// Called for every block this provider is attached to
-    abstract member Launch : unit -> unit
+    abstract member Launch : unit -> Async<unit>
 
     /// Activates (unblocks) resources
     /// Should extract necessary information from environment (e.g. connection string)
@@ -26,7 +26,7 @@ and AttachedBlock<'U> =
     { name : string
       userState : 'U
       managed : Managed<'U>
-      launch : unit -> unit
+      launch : unit -> Async<unit>
       run : ('U -> unit) -> unit
       path : string list }
 
@@ -143,14 +143,15 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
             { name = block.Name
               managed = managed
               userState = attached.user
-              launch = fun () ->
+              launch = fun () -> async {
                 printfn "Launching block: %s" block.Name
-                attached.provider.Launch()
+                do! attached.provider.Launch()
 
-                managed.nested
-                |> Map.iter
-                    (fun _name nestedAttached ->
-                        nestedAttached.launch() )
+                let nestedBlocks = managed.nested |> Map.toSeq
+
+                for (_name, nestedBlock) in nestedBlocks do
+                    do! nestedBlock.launch()
+              }
 
               run = fun withAppState ->
                 attached.provider.Activate()

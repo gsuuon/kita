@@ -35,12 +35,6 @@ type AzureProvider(appName, location) =
             member _.Error x = printfn "ERROR: %s" x
         }
 
-    let mutable launched = false
-        // FIXME rework launch/run so this isn't necessary
-
-    member val WaitConnectionString = connectionString
-    member val OnConnection = connectionString.OnSet
-
     member _.Generate(conString) =
         // TODO find the RootBlock attribute which contains this provider
         GenerateProject.generateFunctionsAppZip
@@ -88,17 +82,12 @@ type AzureProvider(appName, location) =
         // Could be useful for local provider
 
         member this.Launch () =
-            if not launched then
-                launched <- true
-
-                let work =
-                    provision
-                        appName
-                        location
-                        cloudTasks
-                        this.ExecuteProvisionRequests
-
-                work.Wait()
+            provision
+                appName
+                location
+                cloudTasks
+                this.ExecuteProvisionRequests
+            |> Async.AwaitTask
 
         member this.Activate () =
             let conString = System.Environment.GetEnvironmentVariable "Kita_AzureNative_ConnectionString"

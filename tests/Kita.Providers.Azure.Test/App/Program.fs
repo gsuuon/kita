@@ -30,7 +30,7 @@ module Operation =
     // idempotent, which it currently is but is not guaranteed to stay that way.
 
     let launchRouteState withDomain =
-        attachedApp.launch()
+        attachedApp.launch() |> Async.RunSynchronously
         attachedApp
         |> Routes.Operation.runRoutes routesDomain withDomain
 

@@ -34,7 +34,7 @@ type LogResource() =
 type FooProvider() =
     interface Provider with
         member _.Activate () = ()
-        member _.Launch () = ()
+        member _.Launch () = async { return () }
 
     interface ValResourceProvider with
         member _.Provide arg =

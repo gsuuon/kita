@@ -8,7 +8,7 @@ open Kita.Domains.Procs
 module ScenarioCommon = 
     type AProvider() =
         interface Provider with
-            member _.Launch () = ()
+            member _.Launch () = async { return () }
             member _.Activate () = ()
 
     type AResource() =

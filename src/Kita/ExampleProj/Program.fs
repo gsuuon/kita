@@ -40,7 +40,7 @@ module Providers =
     type FooProvider() =
         interface Provider with
             member _.Launch () =
-                sayLaunched "Foo"
+                async { sayLaunched "Foo" }
             member _.Activate () = ()
 
         interface ValResourceProvider with
@@ -58,7 +58,7 @@ module Providers =
     type BarProvider() =
         interface Provider with
             member _.Launch () =
-                sayLaunched "Bar"
+                async { sayLaunched "Bar" }
             member _.Activate () = ()
 
         interface LogResourceProvider with
