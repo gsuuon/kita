@@ -59,6 +59,47 @@ module Resources =
         return rg
         }
 
+    /// armParameters should be json string of JUST THE PARAMETERS.
+    /// Do not include $schema, contentVersion, etc.; e.g.
+    /// {
+    ///   "param1" : {
+    ///       "value" : "myvalue"
+    ///    }
+    /// }
+    let createArmDeployment
+        rgName
+        deploymentName
+        (armTemplate: string)
+        (armParameters: string)
+        = task {
+
+        let deploymentProperties = new DeploymentProperties(DeploymentMode.Incremental)
+
+        printfn "ARM Deployment %s template:\n%s"
+            deploymentName
+            armTemplate
+
+        printfn "ARM Deployment %s parameters:\n%s"
+            deploymentName
+            armParameters
+
+        deploymentProperties.Template <- armTemplate
+        deploymentProperties.Parameters <- armParameters
+
+        let! operation =
+            resourceClient.Deployments.StartCreateOrUpdateAsync
+                ( rgName
+                , deploymentName
+                , new Deployment (deploymentProperties)
+                )
+
+        let! rawResult = operation.WaitForCompletionAsync()
+
+        let deployment = rawResult.Value
+
+        return deployment
+
+        }
 
 module Storage =
     open Azure.ResourceManager.Storage

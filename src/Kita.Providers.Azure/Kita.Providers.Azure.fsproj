@@ -10,13 +10,17 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Compile.fs" />
+    <Compile Include="Activation.fs" />
     <Compile Include="Operation/AzureNextApi.fs" />
     <Compile Include="Operation/AzurePreviousApi.fs" />
     <Compile Include="Operation/Client/Blobs.fs" />
     <Compile Include="Operation/GenerateProject.fs" />
     <Compile Include="Resources/Utility/Serializer.fs" />
-    <Compile Include="Resources/CloudQueue.fs" />
-    <Compile Include="Resources/CloudMap.fs" />
+    <Compile Include="Resources/Definition/AzureWebPubSub.fs" />
+    <Compile Include="Resources/Provision/CloudQueue.fs" />
+    <Compile Include="Resources/Provision/CloudMap.fs" />
+    <Compile Include="Resources/Provision/AzureWebPubSubArmTemplate.fs" />
+    <Compile Include="Resources/Provision/AzureWebPubSub.fs" />
     <Compile Include="AzureOperations.fs" />
     <Compile Include="Azure.fs" />
     <Compile Include="RunContext.fs" />

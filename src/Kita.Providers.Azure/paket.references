@@ -3,6 +3,7 @@ Azure.Storage.Blobs
 Azure.Storage.Queues
 Azure.ResourceManager.Storage
 Azure.ResourceManager.Resources
+Azure.Messaging.WebPubSub
 Microsoft.Azure.Management.AppService.Fluent
 Microsoft.Azure.Management.Fluent
 FSharp.Core

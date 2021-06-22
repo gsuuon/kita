@@ -1,4 +1,4 @@
-namespace Kita.Providers.Azure.Resources
+namespace Kita.Providers.Azure.Resources.Provision
 
 open Azure.Storage.Queues
 open FSharp.Control.Tasks
@@ -8,51 +8,48 @@ open Kita.Utility
 open Kita.Resources.Utility
 open Kita.Resources.Collections
 open Kita.Providers.Azure.Client
+open Kita.Providers.Azure.Resources.Utility
+open Kita.Providers.Azure.AzureNextApi
+open Kita.Providers.Azure.Activation
 
 open System.Text.Json
 
 type AzureCloudQueue<'T>
     (
-        queueClient: Waiter<QueueClient>,
+        client: Waiter<QueueClient>,
         serializer: Serializer<string>
     ) =
+
     new (
-        name,
-        conStringWaiter: Waiter<string>,
+        name: string,
         requestProvision,
         serializer
         ) =
-        requestProvision()
+        requestProvision <| noEnv (Storage.createQueue name)
 
-        let queueClient = Waiter<QueueClient>()
-
-        async {
-            // Using waiter means I could attach after deploy
-            // Since the event is only fired when connection happens
-            let! conString = conStringWaiter.GetAsync
-            QueueClient(conString, name) |> queueClient.Set
-        } |> Async.Start
+        let conString = getVariable AzureConnectionStringVarName
+        let queueClient =
+            produceWithEnv
+            <| AzureConnectionStringVarName
+            <| fun conString -> QueueClient(conString, name)
 
         AzureCloudQueue (queueClient, serializer)
 
     new (
-        name,
-        conStringWaiter: Waiter<string>,
+        name: string,
         requestProvision
         ) =
         AzureCloudQueue
             ( name
-            , conStringWaiter
             , requestProvision
-            , Utility.Serializer.json
+            , Serializer.json
             )
 
     interface ICloudQueue<'T> with
         member _.Enqueue xs = async {
-            let! client = queueClient.GetAsync
-
             do! Async.AwaitTask
                 <| task {
+                    let! client = client.GetTask
                     for x in xs do
                         let jsonX =  x
                         let! sendReceiptRes =
@@ -72,7 +69,7 @@ type AzureCloudQueue<'T>
 
         member _.Dequeue count = async {
             // TODO send read receipt to actually dequeue messages
-            let! client = queueClient.GetAsync
+            let! client = client.GetAsync
             let! rMsgs =
                 client.ReceiveMessagesAsync count
                 |> Async.AwaitTask

@@ -1,4 +1,4 @@
-namespace Kita.Providers.Azure.Resources
+namespace Kita.Providers.Azure.Resources.Provision
 
 open System.IO
 open FSharp.Control.Tasks
@@ -7,7 +7,10 @@ open Azure.Storage.Blobs
 open Kita.Utility
 open Kita.Resources.Utility
 open Kita.Resources.Collections
+open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Client
+open Kita.Providers.Azure.Activation
+open Kita.Providers.Azure.Resources.Utility
 
 type AzureCloudMap<'K, 'V>
     (
@@ -16,35 +19,30 @@ type AzureCloudMap<'K, 'V>
     ) =
 
     let getBlob key = task {
-        let! client = blobContainerClient.GetAsync
-
+        let! client = blobContainerClient.GetTask
         let blobName = serializer.Serialize key
         return client.GetBlobClient blobName
     }
 
     new (
         name: string,
-        conStringWaiter: Waiter<string>,
         requestProvision,
         serializer
         ) =
-        requestProvision()
+        requestProvision <| noEnv (Storage.createMap name)
 
-        let blobContainerClient = Waiter<BlobContainerClient>()
-
-        async {
-            let! conString = conStringWaiter.GetAsync
-            BlobContainerClient(conString, name) |> blobContainerClient.Set
-        } |> Async.Start
+        let blobContainerClient =
+            produceWithEnv
+            <| AzureConnectionStringVarName
+            <| fun conString -> BlobContainerClient(conString, name)
 
         AzureCloudMap(blobContainerClient, serializer)
         
-    new (name: string, conStringWaiter: Waiter<string>, requestProvision) =
+    new (name: string, requestProvision) =
         AzureCloudMap(
             name,
-            conStringWaiter,
             requestProvision,
-            Utility.Serializer.json
+            Serializer.json
         )
 
     interface ICloudMap<'K, 'V> with

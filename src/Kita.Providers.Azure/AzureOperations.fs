@@ -49,7 +49,7 @@ let provision
     location
     cloudTasks
     (executeProvisionRequests:
-        string * string -> Task<unit>)
+        string * string -> Task<(string * string) seq>)
     = task {
 
     let! (conString, rgName, saName) =
@@ -70,23 +70,47 @@ let provision
         // but we're only trying to copy
         // is there some way around this?
 
-    execProvisionRequestsWork.Wait()
+    let! environmentVariablesFromResourceProvisions = execProvisionRequestsWork
     printfn "Finished provisioning resources"
 
     let blobUriWork = uploadZipGetBlobSas conString zipProject
     let! appPlan = AppService.createAppServicePlan appName location rgName
     let! blobUri = blobUriWork
     let! functionApp = AppService.createFunctionApp appName appPlan rgName saName
-    let! deployment = AppService.deployFunctionApp conString blobUri functionApp
+
+    printfn "Stopping function app"
+    do! functionApp.StopAsync()
+    printfn "Stopped function app"
+
     let! updatedFunctionApp =
-        [ "Kita_AzureNative_ConnectionString", conString ]
+        seq {
+            yield! environmentVariablesFromResourceProvisions
+            yield "Kita_AzureNative_ConnectionString", conString
+            yield "WEBSITE_RUN_FROM_PACKAGE", blobUri 
+        }
         |> dict
         |> AppService.updateFunctionAppSettings functionApp
 
     printfn "Deployed app: %s" functionApp.Name
 
-    printfn "Syncing triggers"
-    do! functionApp.SyncTriggersAsync()
+    printfn "Starting function app"
+    do! functionApp.StartAsync()
+    printfn "Started function app"
+
+    try
+        printfn "Syncing triggers"
+        do! functionApp.SyncTriggersAsync()
+        printfn "Synced triggers"
+    with
+    | x ->
+        let asString = x.ToString()
+        let explain =
+            if asString.Contains "BadRequest" then
+                "BadRequest error could mean Azure services are having issues, triggers may still be correct (and stale below) - check the portal"
+            else
+                ""
+
+        printfn "Failed to sync triggers:\n%s\n%s" explain asString
 
     do! AppService.listAllFunctions functionApp
 

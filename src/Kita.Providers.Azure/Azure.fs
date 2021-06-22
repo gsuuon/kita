@@ -1,6 +1,7 @@
 ﻿namespace Kita.Providers.Azure
 
 open System.IO
+open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Kita.Core
@@ -13,6 +14,7 @@ open Kita.Providers.Azure.Client
 open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Operations
+open Kita.Providers.Azure.Resources
 
 type InjectableLogger =
     abstract SetLogger : Logger -> unit
@@ -52,8 +54,17 @@ type AzureProvider(appName, location) =
         
     member _.ExecuteProvisionRequests (rgName, saName) = task {
         printfn "Provisioning resources"
-        for provision in provisionRequests do
-            do! provision rgName saName
+
+        let! envVariables =
+            provisionRequests
+            |> List.map (fun req -> req rgName saName)
+            |> Task.WhenAll<(string * string) option>
+
+        return
+            envVariables
+            |> Array.choose id
+            |> Array.toSeq
+
         }
 
     member _.CloudTasks = cloudTasks
@@ -101,20 +112,14 @@ type AzureProvider(appName, location) =
         member _.SetLogger lg = logger <- lg
 
     interface CloudQueueProvider with
-        member _.Provide (name) =
-            Resources.AzureCloudQueue
-                ( name
-                , connectionString
-                , (fun () -> requestProvision <| Storage.createQueue name)
-                ) :> ICloudQueue<_>
+        member _.Provide (name: string) =
+            Resources.Provision.AzureCloudQueue
+                (name, requestProvision) :> ICloudQueue<_>
 
     interface CloudMapProvider with
-        member _.Provide<'K, 'V> name =
-            Resources.AzureCloudMap
-                ( name
-                , connectionString
-                , fun () -> requestProvision <| Storage.createMap name
-                ) :> ICloudMap<'K, 'V>
+        member _.Provide<'K, 'V> (name: string) =
+            Resources.Provision.AzureCloudMap
+                (name, requestProvision) :> ICloudMap<'K, 'V>
 
     interface CloudLogProvider with
         // NOTE
@@ -139,3 +144,26 @@ type AzureProvider(appName, location) =
             cloudTasks <- cloudTask :: cloudTasks
 
             cloudTask
+
+    interface Definition.AzureWebPubSubProvider with
+        member this.Provide (name, config) =
+            let awps = Provision.AzureWebPubSub(name, appName)
+
+            requestProvision 
+            <| awps.ProvisionRequest
+                { location = location
+                  name = appName
+                  tier = config.tier
+                  skuName =
+                      match config.tier with
+                      | "free" ->
+                          "Free_F1"
+                      | tier ->
+                          failwithf
+                              "Don't know the skuName for tier %s"
+                              tier
+                  capacity = 1
+                }
+
+            awps :> Definition.IAzureWebPubSub
+        
