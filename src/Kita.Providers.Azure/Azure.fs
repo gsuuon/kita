@@ -111,11 +111,8 @@ type AzureProvider(appName, location) =
                 (name, requestProvision) :> ICloudMap<'K, 'V>
 
     interface CloudLogProvider with
-        // NOTE
-        // The logger will be the last set logger
-        // Meaning if it's used in a call which doesn't set the logger
-        // It will attribute the log to the previous request
-        // Could cause problems?
+        // TODO
+        // Wrap in thread-local object or restructure entirely
         member _.Provide () =
             { new ICloudLog with
                 member _.Info x = logger.Info x

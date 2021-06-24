@@ -76,9 +76,9 @@ module SimpleScenario =
             let! x = ValResource 0
             let! logger = LogResource ()
             logger.Log "hey"
-            let x1 = x.Get()
+            let _x1 = x.Get()
             x.Set 1
-            let x2 = x.Get()
+            let _x2 = x.Get()
 
             return ()
         }
@@ -122,12 +122,12 @@ module ExtendResource =
     let blockB =
         Block<FooQProvider, unit> "B" {
             let! x = ValResource 0
-            let x1 = x.Get()
+            let _x1 = x.Get()
 
-            let! logger = LogResource ()
+            let! _logger = LogResource ()
 
             let! q = QueueResource<char> ()
-            let x = q.Dequeue ()
+            let _x = q.Dequeue ()
 
             return ()
         }
@@ -263,7 +263,7 @@ module NestScenario =
             |> Operation.attach (FooProvider())
         printfn "Finished attach"
 
-        attached.launch()
+        attached.launch() |> Async.RunSynchronously
 
         attached
         |> Routes.Operation.runRoutes routesDomain withRoutes
