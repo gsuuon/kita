@@ -154,7 +154,6 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
               }
 
               run = fun withAppState ->
-                attached.provider.Activate()
                 withAppState attached.user
 
                 managed.nested
