@@ -11,5 +11,6 @@ type Placeholder() =
     interface AzureRunModule<AppStatePlaceholder> with
         member _.Provider = AzureProvider("","")
         member _.RunRouteState fn = fn RouteState.Empty
+        member _.RunAuthedRouteState fn = fn RouteState.Empty
 
 let runModule = Placeholder() :> AzureRunModule<_>

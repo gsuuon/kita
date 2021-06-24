@@ -66,7 +66,7 @@ module Proxy =
     [<Function("Proxy")>]
     let run
         ([<HttpTrigger
-            (AuthorizationLevel.Function,
+            (AuthorizationLevel.Anonymous,
                 "get",
                 "post",
                 Route = "{**route}")>] req: HttpRequestData,
@@ -90,8 +90,6 @@ module Proxy =
 
             return response
         }
-
-    // TODO actual auth vs unauth
 
     [<Function("AuthedProxy")>]
     let runAuthed
