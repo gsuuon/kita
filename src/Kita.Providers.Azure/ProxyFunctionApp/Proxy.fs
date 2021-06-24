@@ -22,7 +22,7 @@ module Proxy =
 
     let runModule = ProxyApp.AutoReplacedReference.runModule :> AzureRunModule<_>
 
-    runModule.Provider.Activate()
+    (runModule.Provider :> Provider).Activate()
 
     let notFoundHandler _req : Async<RawResponse> =
         async { return { body = "Not found :("; status = NOTFOUND } }

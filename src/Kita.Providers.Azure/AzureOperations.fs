@@ -6,6 +6,7 @@ open System.Threading.Tasks
 open Kita.Providers.Azure.Client
 open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
+open Kita.Providers.Azure.Activation
 
 let provisionCloudGroup appName location = task {
     printfn "Provisioning %s for %s" appName location
@@ -85,7 +86,7 @@ let provision
     let! updatedFunctionApp =
         seq {
             yield! environmentVariablesFromResourceProvisions
-            yield "Kita_AzureNative_ConnectionString", conString
+            yield AzureConnectionStringVarName, conString
             yield "WEBSITE_RUN_FROM_PACKAGE", blobUri 
         }
         |> dict

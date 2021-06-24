@@ -87,6 +87,13 @@ module Resources =
         deploymentProperties.Parameters <- armParameters
 
         let! operation =
+            // TODO
+            // handle if a deployment already exists with given name
+            // throws an error
+            // could catch and if the error contains "is still active"
+            // then get a handle for that deployment, cancel it, and retry
+            // https://docs.microsoft.com/en-us/dotnet/api/azure.resourcemanager.resources.deploymentsoperations.cancel?view=azure-dotnet-preview
+
             resourceClient.Deployments.StartCreateOrUpdateAsync
                 ( rgName
                 , deploymentName
