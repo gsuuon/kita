@@ -20,12 +20,9 @@ module Proxy =
     open Kita.Providers.Azure
     open Kita.Providers.Azure.RunContext
 
-    let connectionString =
-        Environment.GetEnvironmentVariable
-            "Kita_AzureNative_ConnectionString"
-        // TODO this needs to be a generated name
-
     let runModule = ProxyApp.AutoReplacedReference.runModule :> AzureRunModule<_>
+
+    runModule.Provider.Activate()
 
     let notFoundHandler _req : Async<RawResponse> =
         async { return { body = "Not found :("; status = NOTFOUND } }
