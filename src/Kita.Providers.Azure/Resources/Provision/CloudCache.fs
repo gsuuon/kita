@@ -1,6 +1,6 @@
 namespace Kita.Providers.Azure.Resources.Provision
 
-open System.Collections.Generic
+open System.Collections.Concurrent
 open FSharp.Control.Tasks
 
 open Microsoft.Azure.Management.ResourceManager.Fluent.Core
@@ -46,8 +46,7 @@ module AzureCloudCacheProvision =
         }
 
 module RedisClientCache =
-    let cache = Dictionary<string, ConnectionMultiplexer>()
-        // TODO should be concurrent dictionary
+    let cache = ConcurrentDictionary<string, ConnectionMultiplexer>()
 
     let get conString =
         match cache.TryGetValue conString with
@@ -55,7 +54,7 @@ module RedisClientCache =
             client
         | false, _ ->
             let client = ConnectionMultiplexer.Connect(conString)
-            cache.Add(conString, client)
+            cache.TryAdd(conString, client) |> ignore
             client
 
 type AzureCloudCache<'K, 'V>
@@ -85,7 +84,6 @@ type AzureCloudCache<'K, 'V>
             <| fun conString -> RedisClientCache.get conString
 
         AzureCloudCache(redisClient, serializer)
-
 
     interface ICloudMap<'K, 'V> with
         member _.TryFind x = async {
