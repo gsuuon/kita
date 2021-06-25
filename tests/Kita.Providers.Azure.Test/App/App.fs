@@ -83,7 +83,7 @@ let app =
     let! activeUsers = CloudQueue<string>("active-users")
         // On request client, add active user
         // on task, check all users - if user Id still exists, add back to queue
-    let! roomUsers = CloudMap<string, string list>("active-rooms")
+    let! roomUsers = CloudCache<string, string list>("active-rooms")
     let! lastActive = CloudMap<string, DateTime>("users-last-active")
     let! webPubSub = AzureWebPubSub("realtime")
 
@@ -93,7 +93,8 @@ let app =
         CloudTask("0 * * * * *",
             fun () -> async {
                 let! wpsClient = webPubSub.Client.GetAsync
-                let! lastKnownActiveUsers = activeUsers.Dequeue 100
+                let! lastKnownActiveUsers = activeUsers.Dequeue 32
+                    // Dequeue > 32 fails, invalid value. Range is from 1 to 32
 
                 let currentlyActiveUsers =
                     // Ridiculous way to do this
@@ -130,6 +131,7 @@ let app =
             task {
                 let! wpsClient = webPubSub.Client.GetTask
                 let! x = wpsClient.AddUserToGroupAsync(roomId, userId)
+                
                 return x
             }
 
@@ -179,6 +181,19 @@ let app =
                     return ok "Missing roomId query param"
             | None ->
                 return ok "Missing userId query param"
+        })
+
+        get "chat-room-users" (fun req -> async {
+            match getFirstQuery "roomId" req with
+            | None -> 
+                return ok "Missing roomId query param"
+            | Some roomId ->
+                let! usersOpt = roomUsers.TryFind roomId
+                match usersOpt with
+                | Some users ->
+                    return ok <| sprintf "Found %i users: %s" users.Length (users |> String.concat ", ")
+                | None ->
+                    return ok "Room hasn't been used"
         })
     }
 
