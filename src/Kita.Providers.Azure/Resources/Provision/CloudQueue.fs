@@ -27,7 +27,6 @@ type AzureCloudQueue<'T>
         ) =
         requestProvision <| noEnv (Storage.createQueue name)
 
-        let conString = getVariable AzureConnectionStringVarName
         let queueClient =
             produceWithEnv
             <| AzureConnectionStringVarName

@@ -90,7 +90,9 @@ type AzureProvider(appName, location) =
             |> Async.AwaitTask
 
         member this.Activate () =
-            let conString = System.Environment.GetEnvironmentVariable "Kita_AzureNative_ConnectionString"
+            let conString =
+                System.Environment.GetEnvironmentVariable 
+                    Activation.AzureConnectionStringVarName
 
             if conString <> null then
                 this.Attach conString
