@@ -23,4 +23,5 @@ nuget Pulumi.FSharp >= 2.0
 nuget Pulumi.FSharp.Azure 3.49.0.29
 nuget Pulumi.FSharp.AzureNative 0.7.1.2
 nuget Pulumi.FSharp.Core 2.0.15
+nuget StackExchange.Redis
 nuget YoloDev.Expecto.TestSdk

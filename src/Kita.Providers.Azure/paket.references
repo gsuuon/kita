@@ -7,3 +7,5 @@ Azure.Messaging.WebPubSub
 Microsoft.Azure.Management.AppService.Fluent
 Microsoft.Azure.Management.Fluent
 FSharp.Core
+Microsoft.Azure.Management.Redis.Fluent
+StackExchange.Redis
