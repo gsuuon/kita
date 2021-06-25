@@ -217,6 +217,17 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
             ctx, sNext |> addNested attached
 
     member inline _.Bind
+        // TODO
+        // This overload makes compile errors for missing resource provider interfaces
+        // much worse to read
+        // I could move this to a custom operation instead
+        // I don't actually need this to be an overload
+        // This overload is just to support using do! for nesting
+        // which seems semantically incorrect (not a zero-like type)
+        // do! is used because custom operations can't be called with pipe operators (<|)
+        // so end up needing to put parens around entire argument expression or assign to variable
+        // can i replace this with combine?
+        // then I just say routeState {} instead of do! routeState {} or customOp routeState {}
         (
             carry: BlockBindState<'Provider, _> ->
                    BlockBindState<'Provider, _>,
