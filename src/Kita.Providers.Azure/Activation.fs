@@ -2,21 +2,22 @@ module Kita.Providers.Azure.Activation
 
 open System
 open System.Threading.Tasks
+open System.Text.RegularExpressions
+
+
 open FSharp.Control.Tasks
 
 open Kita.Utility
 
 let AzureConnectionStringVarName = "Kita_Azure_ConnectionString"
 
-let getVariable name =
-    let env = Waiter<string>()
+/// Enforces environment variable naming rules
+/// only letters, numbers and underscores
+/// replaces everything else with underscores
+let canonEnvVarName name =
+    let pattern = "[^A-z0-9_]"
 
-    try
-        env.Set <| Environment.GetEnvironmentVariable name
-    with
-    | :? ArgumentNullException -> ()
-
-    env
+    Regex.Replace (name, pattern, "_")
 
 let noEnv provision rg sa = task {
     let x : Task<unit> = provision rg sa 
@@ -28,13 +29,18 @@ let noEnv provision rg sa = task {
 let produceWithEnv envName withEnv =
     let waiter = Waiter()
 
-    task {
-        let varWaiter = getVariable envName
-        let! envValue = varWaiter.GetTask
-
-        waiter.Set <| withEnv envValue
-        return waiter
-    } |> ignore // tasks not using `new Task` are hot
+    async {
+        match Environment.GetEnvironmentVariable envName with
+        | null ->
+            printfn "Expected missing environment variable: %s" envName
+                // TODO remove
+                // or only print if we're in run context
+                // okay to be missing in launch
+        | value ->
+            value
+            |> withEnv
+            |> waiter.Set
+    } |> Async.Start
 
     waiter
         

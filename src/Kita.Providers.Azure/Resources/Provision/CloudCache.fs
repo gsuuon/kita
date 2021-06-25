@@ -15,11 +15,12 @@ open Kita.Providers.Azure.Activation
 open Kita.Providers.Azure.Resources.Utility
 
 [<AutoOpen>]
-module AzureCloudCacheOperation =
-    let azure = AzurePreviousApi.Credential.azure
+module AzureCloudCacheUtility =
+    let conStringVarName name =
+        $"Kita_Azure_RedisCache_{name}" |> canonEnvVarName
 
-    let conStringVarName name = $"Kita_Azure_RedisCache_{name}"
-
+[<AutoOpen>]
+module AzureCloudCacheProvision =
     let provision
         (rgName: string)
         (location: string)
@@ -27,7 +28,7 @@ module AzureCloudCacheOperation =
         = task {
 
         let! redisCache =
-            azure.RedisCaches
+            AzurePreviousApi.Credential.azure.RedisCaches
                 .Define(name)
                 .WithRegion(location)
                 .WithExistingResourceGroup(rgName)
@@ -35,7 +36,7 @@ module AzureCloudCacheOperation =
                 .CreateAsync()
 
         let primaryKey = redisCache.Keys.PrimaryKey
-        let url = $"{name}.{redisCache.HostName}"
+        let url = redisCache.HostName
         let sslPort = redisCache.SslPort
         let connectionString =
             $"{url}:{sslPort},password={primaryKey},ssl=true"
@@ -44,15 +45,17 @@ module AzureCloudCacheOperation =
 
         }
 
-type RedisClientCache() =
-    static member val Cache = Dictionary<string, ConnectionMultiplexer>()
-    static member Get conString =
-        match RedisClientCache.Cache.TryGetValue conString with
+module RedisClientCache =
+    let cache = Dictionary<string, ConnectionMultiplexer>()
+        // TODO should be concurrent dictionary
+
+    let get conString =
+        match cache.TryGetValue conString with
         | true, client ->
             client
         | false, _ ->
             let client = ConnectionMultiplexer.Connect(conString)
-            RedisClientCache.Cache.Add(conString, client)
+            cache.Add(conString, client)
             client
 
 type AzureCloudCache<'K, 'V>
@@ -79,7 +82,7 @@ type AzureCloudCache<'K, 'V>
         let redisClient =
             produceWithEnv
             <| conStringVarName name
-            <| fun conString -> RedisClientCache.Get conString
+            <| fun conString -> RedisClientCache.get conString
 
         AzureCloudCache(redisClient, serializer)
 
