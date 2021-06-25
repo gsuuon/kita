@@ -19,6 +19,7 @@
     <Compile Include="Resources/Definition/AzureWebPubSub.fs" />
     <Compile Include="Resources/Provision/CloudQueue.fs" />
     <Compile Include="Resources/Provision/CloudMap.fs" />
+    <Compile Include="Resources/Provision/CloudCache.fs" />
     <Compile Include="Resources/Provision/AzureWebPubSubArmTemplate.fs" />
     <Compile Include="Resources/Provision/AzureWebPubSub.fs" />
     <Compile Include="AzureOperations.fs" />

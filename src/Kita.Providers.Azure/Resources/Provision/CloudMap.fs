@@ -27,8 +27,10 @@ type AzureCloudMap<'K, 'V>
     new (
         name: string,
         requestProvision,
-        serializer
+        ?serializer
         ) =
+        let serializer = defaultArg serializer Serializer.json
+
         requestProvision <| noEnv (Storage.createMap name)
 
         let blobContainerClient =
@@ -38,13 +40,6 @@ type AzureCloudMap<'K, 'V>
 
         AzureCloudMap(blobContainerClient, serializer)
         
-    new (name: string, requestProvision) =
-        AzureCloudMap(
-            name,
-            requestProvision,
-            Serializer.json
-        )
-
     interface ICloudMap<'K, 'V> with
         member _.TryFind key = Async.AwaitTask <| task {
             let! blob = getBlob key

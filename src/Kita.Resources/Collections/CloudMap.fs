@@ -13,3 +13,10 @@ type CloudMapProvider =
 type CloudMap<'K, 'V>(name) =
     member _.Create (p: #CloudMapProvider) =
         p.Provide<'K, 'V> name
+
+type CloudCacheProvider =
+    abstract Provide<'K, 'V> : string -> ICloudMap<'K, 'V>
+
+type CloudCache<'K, 'V>(name) =
+    member _.Create (p: #CloudCacheProvider) =
+        p.Provide<'K, 'V> name

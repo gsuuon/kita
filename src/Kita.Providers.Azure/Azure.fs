@@ -153,3 +153,10 @@ type AzureProvider(appName, location) =
 
             awps :> Definition.IAzureWebPubSub
         
+    interface CloudCacheProvider with
+        member _.Provide name =
+            Provision.AzureCloudCache
+                ( name
+                , requestProvision
+                , location
+                ) :> ICloudMap<_,_>
