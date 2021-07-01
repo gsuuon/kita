@@ -4,6 +4,7 @@ namespace Kita.Providers.Azure.AzurePreviousApi
 // https://docs.microsoft.com/en-us/dotnet/api/overview/azure/?view=azure-dotnet
 
 open System
+open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Microsoft.Azure.Management.AppService.Fluent
@@ -189,3 +190,80 @@ module AppService =
         return update
 
         }
+
+module SqlServer =
+    open Microsoft.Azure.Management.Sql.Fluent
+
+    let rec generateStringBasedOnGuid (start: string) desiredLength =
+        let guid = System.Guid.NewGuid()
+
+        let missingLength = desiredLength - start.Length
+
+        let generatedString =
+            guid.ToString()
+            |> fun s -> s.Replace("-", "")
+            |> Seq.truncate missingLength
+            |> Seq.map string
+            |> String.concat ""
+
+        let result = start + generatedString
+
+        if desiredLength > result.Length then
+            generateStringBasedOnGuid result desiredLength
+        else
+            result
+
+    type UserAuth =
+        { username : string
+          password : string }
+
+    let createSqlServer
+        serverName
+        (location: string)
+        (rgName: string)
+        (databases: string list)
+        (userAuth : UserAuth)
+        = task {
+            // check if server exists
+            // do i need to?
+
+            let! servicePrincipal = azure.AccessManagement.ServicePrincipals.GetByIdAsync (credential.ClientId)
+            let credentialName = servicePrincipal.Name
+
+            let! sqlServer =
+                azure.SqlServers
+                    .Define(serverName)
+                    .WithRegion(location)
+                    .WithExistingResourceGroup(rgName)
+                    .WithAdministratorLogin(userAuth.username)
+                    .WithAdministratorPassword(userAuth.password)
+                    .WithActiveDirectoryAdministrator(credentialName, credential.ClientId)
+                    .CreateAsync()
+
+            let! databasesCreated =
+                databases
+                |> List.map
+                    (fun db ->
+                        sqlServer.Databases
+                            .Define(db)
+                            .CreateAsync())
+                |> List.toArray
+                |> Task.WhenAll
+
+            return databasesCreated
+        }
+
+    let createSqlServerRngUser
+        serverName
+        (location: string)
+        (rgName: string)
+        (databases: string list)
+        =
+        createSqlServer
+            serverName
+            location
+            rgName
+            databases
+            { username = generateStringBasedOnGuid "u" 20
+              password = generateStringBasedOnGuid "" 128 }
+

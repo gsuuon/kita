@@ -9,3 +9,4 @@ Microsoft.Azure.Management.Fluent
 FSharp.Core
 Microsoft.Azure.Management.Redis.Fluent
 StackExchange.Redis
+Microsoft.Azure.Management.Sql.Fluent
