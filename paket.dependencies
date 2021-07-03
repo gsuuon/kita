@@ -8,6 +8,7 @@ nuget Expecto >= 9.0
 nuget Farmer 1.4.0
 nuget FSharp.Core 5.0.1
 nuget Giraffe 5.0.0-rc-6 rc
+nuget Microsoft.EntityFrameworkCore.SqlServer
 nuget Microsoft.NET.Test.Sdk >= 16.0
 nuget ply 0.3.1
 nuget Azure.Identity 1.2.2

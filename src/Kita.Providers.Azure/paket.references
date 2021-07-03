@@ -10,3 +10,4 @@ FSharp.Core
 Microsoft.Azure.Management.Redis.Fluent
 StackExchange.Redis
 Microsoft.Azure.Management.Sql.Fluent
+Microsoft.EntityFrameworkCore.SqlServer
