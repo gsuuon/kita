@@ -18,6 +18,7 @@ open Microsoft.Azure.Management.ResourceManager.Fluent.Core
 open Microsoft.Azure.Management.ResourceManager.Fluent.Authentication
 
 open Kita.Providers.Azure
+open Kita.Providers.Azure.Utility.LocalLog
 
 [<RequireQualifiedAccess>]
 [<AutoOpen>]
@@ -40,7 +41,7 @@ module Credential =
             .Authenticate(credential)
             .WithSubscription(AzureNextApi.Credential.subId())
 
-    printfn "Using subscription: %s" azure.SubscriptionId
+    report "Using subscription: %s" azure.SubscriptionId
 
 module AppService = 
     let createFunctionApp
@@ -57,7 +58,7 @@ module AppService =
             // We get existing based on only rgName and appName
 
         if existingFunctionApp <> null then
-            printfn "Using existing functionApp: %s"
+            report "Using existing functionApp: %s"
                         existingFunctionApp.Name
 
             return existingFunctionApp
@@ -79,7 +80,7 @@ module AppService =
                     .WithAppSettings(settings)
                     .CreateAsync()
 
-            printfn "Created functionApp: %s on storage: %s"
+            report "Created functionApp: %s on storage: %s"
                 functionApp.Name
                 functionApp.StorageAccount.Name
 
@@ -94,7 +95,7 @@ module AppService =
                 return ()
             else
                 for (func: IFunctionEnvelope) in pagedCollection do
-                    printfn "Function: %s | %s"
+                    report "Function: %s | %s"
                         func.Name
                         func.Type
 
@@ -115,7 +116,7 @@ module AppService =
                 (rgName, appServicePlanName)
 
         if existing <> null then
-            printfn "Using existing app service plan: %s" existing.Name
+            report "Using existing app service plan: %s" existing.Name
             return existing
 
         else
@@ -127,7 +128,7 @@ module AppService =
                     .WithConsumptionPricingTier()
                     .CreateAsync()
 
-            printfn "Using app service plan: %s" appServicePlan.Name
+            report "Using app service plan: %s" appServicePlan.Name
 
             return appServicePlan
         }
@@ -137,7 +138,7 @@ module AppService =
         settings
         = task {
 
-        printfn "Updating app settings:\n%s"
+        report "Updating app settings:\n%s"
                 (settings
                 |> Seq.map
                     (fun (KeyValue(k,v)) ->
@@ -157,7 +158,7 @@ module AppService =
                 .WithAppSettings(settings)
                 .ApplyAsync()
 
-        printfn "Updated settings"
+        report "Updated settings"
 
         return functionApp
 
@@ -169,7 +170,7 @@ module AppService =
         (functionApp: IFunctionApp)
         = task {
 
-        printfn "Deploying blob.."
+        report "Deploying blob.."
 
         let! update =
         // This fails a lot?
@@ -185,7 +186,7 @@ module AppService =
                 )
                 .ApplyAsync()
 
-        printfn "Deployed %s" functionApp.Name
+        report "Deployed %s" functionApp.Name
 
         return update
 
@@ -239,6 +240,13 @@ module SqlServer =
                     .WithAdministratorPassword(userAuth.password)
                     .WithActiveDirectoryAdministrator(credentialName, credential.ClientId)
                     .CreateAsync()
+
+            report "Created SqlServer %s" sqlServer.FullyQualifiedDomainName
+            report "SqlServer using user credential: %s" credentialName
+            report
+                "Auth\n\tuser: %s\n\tpassword: %s"
+                    userAuth.username
+                    userAuth.password
 
             let! databasesCreated =
                 databases
