@@ -3,6 +3,7 @@
 open System.IO
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Microsoft.EntityFrameworkCore
 
 open Kita.Core
 open Kita.Utility
@@ -16,6 +17,7 @@ open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Operations
 open Kita.Providers.Azure.Resources
 
+
 type InjectableLogger =
     abstract SetLogger : Logger -> unit
 
@@ -23,6 +25,7 @@ type AzureProvider(appName, location) =
     let mutable cloudTasks = []
     let mutable provisionRequests = []
 
+    /// rgName -> saName -> unit task
     let requestProvision provision =
         provisionRequests <- provision :: provisionRequests
 
@@ -162,3 +165,25 @@ type AzureProvider(appName, location) =
                 , requestProvision
                 , location
                 ) :> ICloudMap<_,_>
+
+    interface Definition.AzureDatabaseSQLProvider with
+        member _.Provide<'T when 'T :> DbContext
+                            and 'T : (new : unit -> 'T)>(serverName) =
+            
+            requestProvision
+            <| fun rgName saName -> task {
+                let dbCtx = new 'T()
+                let! dbs =
+                    SqlServer.createSqlServerRngUser
+                        serverName
+                        location
+                        rgName
+                        []
+
+                return None
+            }
+
+            { new Definition.IAzureDatabaseSQL<'T> with
+                member _.GetContext () =
+                    new 'T()
+            }

@@ -7,7 +7,9 @@ type IAzureDatabaseSQL<'T when 'T :> DbContext> =
     abstract GetContext : unit -> 'T
 
 type AzureDatabaseSQLProvider =
-    abstract Provide<'T when 'T :> DbContext> : string -> IAzureDatabaseSQL<'T>
+    abstract Provide<'T when 'T :> DbContext
+                        and 'T : (new : unit -> 'T)>
+                        : string -> IAzureDatabaseSQL<'T>
 
 type AzureDatabaseSQL(serverName: string) =
     member _.Create (p: #AzureDatabaseSQLProvider) =
