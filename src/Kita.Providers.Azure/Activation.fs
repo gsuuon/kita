@@ -26,21 +26,28 @@ let noEnv provision rg sa = task {
     return res
 }
 
+// TODO
+// move all environment access to here
+// change from environment to secrets config file
+let getActivationData activationPath =
+    match Environment.GetEnvironmentVariable activationPath with
+    | null ->
+        None
+    | value ->
+        Some value
+    
 let produceWithEnv envName withEnv =
     let waiter = Waiter()
 
     async {
-        match Environment.GetEnvironmentVariable envName with
-        | null ->
-            printfn "Expected missing environment variable: %s" envName
-                // TODO remove
-                // or only print if we're in run context
-                // okay to be missing in launch
-        | value ->
+        match getActivationData envName with
+        | None ->
+            printfn "Missing activation data for: %s" envName
+        | Some value ->
             value
             |> withEnv
             |> waiter.Set
     } |> Async.Start
 
     waiter
-        
+
