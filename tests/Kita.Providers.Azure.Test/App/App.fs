@@ -67,7 +67,27 @@ let readBody (req: RawRequest) =
     |> Seq.toArray
     |> Text.Encoding.UTF8.GetString
 
+open AzureApp.DbModel
+open EntityFrameworkCore.FSharp.Extensions
+open Microsoft.EntityFrameworkCore
+open Microsoft.EntityFrameworkCore.SqlServer
+
 let app =
+    let createAppDbCtx (config: AzureDbContextConfig) =
+        { new ApplicationDbContext() with
+            member _.OnModelCreating b =
+                b.RegisterOptionTypes()
+                
+            member _.OnConfiguring options =
+                options.UseSqlServer
+                    config.connectionString
+                    |> ignore
+                
+                options.AddInterceptors
+                    (config.newConnectionInterceptor())
+                    |> ignore
+        }
+        
     Block<AzureProvider, AppState> "chat-app" {
         // App names must be between 2-60 characters alphanumeric + non-leading hyphen
 
@@ -86,6 +106,7 @@ let app =
     let! roomUsers = CloudCache<string, string list>("active-rooms")
     let! lastActive = CloudMap<string, DateTime>("users-last-active")
     let! webPubSub = AzureWebPubSub("realtime")
+    let! sqlServer = AzureDatabaseSQL("azsqlserver", createAppDbCtx)
 
     let! lg = CloudLog()
 
@@ -194,6 +215,27 @@ let app =
                     return ok <| sprintf "Found %i users: %s" users.Length (users |> String.concat ", ")
                 | None ->
                     return ok "Room hasn't been used"
+        })
+
+        get "user" (fun req -> async {
+            match getFirstQuery "userName" req with
+            | None ->
+                return ok "Missing userName query param"
+            | Some userName ->
+                let db = sqlServer.GetContext()
+
+                let userFound =
+                    query {
+                        for user in db.Users do
+                        where (user.name = userName)
+                        select user
+                    } |> Seq.tryHead
+
+                match userFound with
+                | None ->
+                    return ok <| sprintf "Didn't find user named %s" userName
+                | Some user ->
+                    return ok <| sprintf "Found user %s with permissions: %A" user.name user.permissions
         })
     }
 
