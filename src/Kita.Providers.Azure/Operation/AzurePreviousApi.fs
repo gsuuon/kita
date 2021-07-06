@@ -248,17 +248,7 @@ module SqlServer =
                     userAuth.username
                     userAuth.password
 
-            let! databasesCreated =
-                databases
-                |> List.map
-                    (fun db ->
-                        sqlServer.Databases
-                            .Define(db)
-                            .CreateAsync())
-                |> List.toArray
-                |> Task.WhenAll
-
-            return databasesCreated
+            return sqlServer
         }
 
     let createSqlServerRngUser
