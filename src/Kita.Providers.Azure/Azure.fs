@@ -218,12 +218,13 @@ type AzureProvider(appName, location) =
                 return Some (connectionStringEnvVarName, connectionString)
             }
 
-            let conString =
-                defaultArg
-                <| getActivationData connectionStringEnvVarName // is this reading from env every time?
-                <| ""
+            let ctxConfig =
+                let conString =
+                    defaultArg
+                    <| getActivationData connectionStringEnvVarName
+                    <| ""
+
+                ctxConfigAzureInterceptor conString
 
             { new IAzureDatabaseSQL<'T> with
-                member _.GetContext () =
-                    createCtx
-                    <| ctxConfigAzureInterceptor conString }
+                member _.GetContext () = createCtx ctxConfig }
