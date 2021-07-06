@@ -3,7 +3,9 @@
 open System.IO
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Microsoft.EntityFrameworkCore
+open Microsoft.EntityFrameworkCore.Diagnostics
 
 open Kita.Core
 open Kita.Utility
@@ -12,10 +14,14 @@ open Kita.Resources.Collections
 
 open Kita.Providers.Azure
 open Kita.Providers.Azure.Client
+open Kita.Providers.Azure.Activation
 open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Operations
 open Kita.Providers.Azure.Resources
+open Kita.Providers.Azure.Resources.Definition
+open Kita.Providers.Azure.Resources.Operation
+open Kita.Providers.Azure.Utility.LocalLog
 
 
 type InjectableLogger =
@@ -95,7 +101,7 @@ type AzureProvider(appName, location) =
         member this.Activate () =
             let conString =
                 System.Environment.GetEnvironmentVariable 
-                    Activation.AzureConnectionStringVarName
+                    AzureConnectionStringVarName
 
             if conString <> null then
                 this.Attach conString
@@ -136,7 +142,7 @@ type AzureProvider(appName, location) =
 
             cloudTask
 
-    interface Definition.AzureWebPubSubProvider with
+    interface AzureWebPubSubProvider with
         member _.Provide (name, config) =
             let awps = Provision.AzureWebPubSub(name, appName)
 
@@ -156,7 +162,7 @@ type AzureProvider(appName, location) =
                   capacity = 1
                 }
 
-            awps :> Definition.IAzureWebPubSub
+            awps :> IAzureWebPubSub
         
     interface CloudCacheProvider with
         member _.Provide name =
@@ -166,24 +172,58 @@ type AzureProvider(appName, location) =
                 , location
                 ) :> ICloudMap<_,_>
 
-    interface Definition.AzureDatabaseSQLProvider with
-        member _.Provide<'T when 'T :> DbContext
-                            and 'T : (new : unit -> 'T)>(serverName) =
-            
+
+    interface AzureDatabaseSQLProvider with
+        member _.Provide<'T when 'T :> DbContext>
+            (
+                serverName,
+                createCtx
+            ) =
+            let connectionStringEnvVarName =
+                $"Kita_Azure_DbSQL_{serverName}"
+                |> canonEnvVarName
+
+            let ctxConfigAzureInterceptor conString =
+                { connectionString = conString
+                  newConnectionInterceptor =
+                    fun () ->
+                        AzureConnectionInterceptor()
+                        :> DbConnectionInterceptor
+                }
+
             requestProvision
             <| fun rgName saName -> task {
-                let dbCtx = new 'T()
-                let! dbs =
+                let! sqlServer =
                     SqlServer.createSqlServerRngUser
                         serverName
                         location
                         rgName
                         []
 
-                return None
+                let connectionString =
+                    $"Server=tcp:{sqlServer.FullyQualifiedDomainName},1433;Initial Catalog=consoletest;Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;"
+
+                let dbCtx =
+                    connectionString
+                    |> ctxConfigAzureInterceptor
+                    |> createCtx
+
+                report "Checking database migrations for %s" serverName
+                let! migrations = dbCtx.Database.GetPendingMigrationsAsync()
+
+                report "Found %i migrations. Applying.." <| Seq.length migrations
+                do! dbCtx.Database.MigrateAsync()
+                report "Migrated database %s" serverName
+
+                return Some (connectionStringEnvVarName, connectionString)
             }
 
-            { new Definition.IAzureDatabaseSQL<'T> with
+            let conString =
+                defaultArg
+                <| getActivationData connectionStringEnvVarName // is this reading from env every time?
+                <| ""
+
+            { new IAzureDatabaseSQL<'T> with
                 member _.GetContext () =
-                    new 'T()
-            }
+                    createCtx
+                    <| ctxConfigAzureInterceptor conString }
