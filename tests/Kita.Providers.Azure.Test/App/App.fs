@@ -1,4 +1,7 @@
 module AzureApp.App
+#nowarn "0760"
+    // FS0760: It is recommended that objects supporting the IDisposable interface are created using the syntax 'new Type(args)', rather than 'Type(args)' or 'Type' as a function value representing the constructor, to indicate that resources may be owned by the generated value
+    // `use` x = db.GetContext()
 
 open System
 open FSharp.Control.Tasks
@@ -73,15 +76,6 @@ open Microsoft.EntityFrameworkCore
 open Microsoft.EntityFrameworkCore.SqlServer
 
 let app =
-    let createAppDbCtx (config: AzureDbContextConfig) =
-        let options =
-            (new DbContextOptionsBuilder())
-                .UseSqlServer(config.connectionString)
-                .AddInterceptors(config.newConnectionInterceptor())
-                .Options
-
-        new ApplicationDbContext(options)
-        
     Block<AzureProvider, AppState> "chat-app" {
         // App names must be between 2-60 characters alphanumeric + non-leading hyphen
 
@@ -100,7 +94,8 @@ let app =
     let! roomUsers = CloudCache<string, string list>("active-rooms")
     let! lastActive = CloudMap<string, DateTime>("users-last-active")
     let! webPubSub = AzureWebPubSub("realtime")
-    let! sqlServer = AzureDatabaseSQL("kita-test-db", createAppDbCtx)
+
+    let! sqlServer = AzureDatabaseSQL("kita-test-db", ApplicationDbContext)
 
     let! lg = CloudLog()
 
@@ -216,7 +211,7 @@ let app =
             | None ->
                 return ok "Missing userName query param"
             | Some userName ->
-                let db = sqlServer.GetContext()
+                use db = sqlServer.GetContext()
 
                 let userFound =
                     query {

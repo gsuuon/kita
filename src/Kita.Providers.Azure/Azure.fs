@@ -183,13 +183,11 @@ type AzureProvider(appName, location) =
                 $"Kita_Azure_DbSQL_{serverName}"
                 |> canonEnvVarName
 
-            let ctxConfigAzureInterceptor conString =
-                { connectionString = conString
-                  newConnectionInterceptor =
-                    fun () ->
-                        AzureConnectionInterceptor()
-                        :> DbConnectionInterceptor
-                }
+            let createOptions (conString: string) =
+                (new DbContextOptionsBuilder())
+                    .UseSqlServer(conString)
+                    .AddInterceptors(AzureConnectionInterceptor())
+                    .Options
 
             requestProvision
             <| fun rgName saName -> task {
@@ -215,10 +213,7 @@ type AzureProvider(appName, location) =
                 let connectionString =
                     $"Server=tcp:{sqlServer.FullyQualifiedDomainName},1433;Initial Catalog={dbName};Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;"
 
-                let dbCtx =
-                    connectionString
-                    |> ctxConfigAzureInterceptor
-                    |> createCtx
+                let dbCtx = connectionString |> createOptions |> createCtx
 
                 report "Checking database migrations for %s" serverName
 
@@ -241,13 +236,10 @@ type AzureProvider(appName, location) =
                 return Some (connectionStringEnvVarName, connectionString)
             }
 
-            let ctxConfig =
-                let conString =
-                    defaultArg
-                    <| getActivationData connectionStringEnvVarName
-                    <| ""
-
-                ctxConfigAzureInterceptor conString
+            let conString =
+                defaultArg
+                <| getActivationData connectionStringEnvVarName
+                <| ""
 
             { new IAzureDatabaseSQL<'T> with
-                member _.GetContext () = createCtx ctxConfig }
+                member _.GetContext () = conString |> createOptions |> createCtx }
