@@ -193,6 +193,7 @@ type AzureProvider(appName, location) =
 
             requestProvision
             <| fun rgName saName -> task {
+                report "Creating sql server.."
                 let! sqlServer =
                     SqlServer.createSqlServerRngUser
                         serverName

@@ -9,7 +9,7 @@ module LocalLog =
         lock monitor
             (fun () ->
                 Console.WriteLine
-                    $"|{Threading.Thread.CurrentThread.Name}| {message}"
+                    $"|Thread {Threading.Thread.CurrentThread.ManagedThreadId}| {message}"
             )
 
     let report format = Printf.ksprintf reportMessage format
