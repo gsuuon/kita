@@ -20,8 +20,11 @@ type Room =
     }
 
 
-type ApplicationDbContext() =
-    inherit DbContext()
+type ApplicationDbContext =
+    inherit DbContext
+
+    new () = { inherit DbContext() }
+    new (contextOptions) = { inherit DbContext(contextOptions) }
 
     [<DefaultValue>] val mutable users : DbSet<User>
     member this.Users with get() = this.users and set v = this.users <- v
