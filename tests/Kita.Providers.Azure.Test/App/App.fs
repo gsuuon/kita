@@ -75,6 +75,7 @@ open Microsoft.EntityFrameworkCore.SqlServer
 let app =
     let createAppDbCtx (config: AzureDbContextConfig) =
         { new ApplicationDbContext() with
+            member _.Database = base.Database
             member _.OnModelCreating b =
                 b.RegisterOptionTypes()
                 
