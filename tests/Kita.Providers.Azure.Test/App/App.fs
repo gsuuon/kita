@@ -74,20 +74,13 @@ open Microsoft.EntityFrameworkCore.SqlServer
 
 let app =
     let createAppDbCtx (config: AzureDbContextConfig) =
-        { new ApplicationDbContext() with
-            member _.Database = base.Database
-            member _.OnModelCreating b =
-                b.RegisterOptionTypes()
-                
-            member _.OnConfiguring options =
-                options.UseSqlServer
-                    config.connectionString
-                    |> ignore
-                
-                options.AddInterceptors
-                    (config.newConnectionInterceptor())
-                    |> ignore
-        }
+        let options =
+            (new DbContextOptionsBuilder())
+                .UseSqlServer(config.connectionString)
+                .AddInterceptors(config.newConnectionInterceptor())
+                .Options
+
+        new ApplicationDbContext(options)
         
     Block<AzureProvider, AppState> "chat-app" {
         // App names must be between 2-60 characters alphanumeric + non-leading hyphen
