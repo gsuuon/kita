@@ -200,9 +200,20 @@ type AzureProvider(appName, location) =
                         location
                         rgName
                         []
+                
+                let dbName =
+                    (typeof<'T>).Name
+                        .Replace("Context","")
+                        .Replace("Db","")
+
+                report "Provisioning db: %s"dbName
+                let! db =
+                    SqlServer.createSqlDatabase
+                        dbName
+                        sqlServer
 
                 let connectionString =
-                    $"Server=tcp:{sqlServer.FullyQualifiedDomainName},1433;Initial Catalog=consoletest;Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;"
+                    $"Server=tcp:{sqlServer.FullyQualifiedDomainName},1433;Initial Catalog={dbName};Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;"
 
                 let dbCtx =
                     connectionString
@@ -210,9 +221,20 @@ type AzureProvider(appName, location) =
                     |> createCtx
 
                 report "Checking database migrations for %s" serverName
-                let! migrations = dbCtx.Database.GetPendingMigrationsAsync()
 
-                report "Found %i migrations. Applying.." <| Seq.length migrations
+                let migrations = dbCtx.Database.GetMigrations() |> Seq.toList
+                report "Found %i migrations" migrations.Length
+                // NOTE
+                // I think migrations aren't found because this dbctx type is actually different than
+                // the one which generated the migrations
+                // not sure how to get around this
+
+                let! _pendingMigrations = dbCtx.Database.GetPendingMigrationsAsync()
+
+                let pendingMigrations = Seq.toList _pendingMigrations
+
+                report "Found %i pending migrations. Applying.." pendingMigrations.Length
+
                 do! dbCtx.Database.MigrateAsync()
                 report "Migrated database %s" serverName
 
