@@ -218,6 +218,12 @@ module SqlServer =
         { username : string
           password : string }
 
+    let getUrl url =
+        task {
+            let! result = (new System.Net.WebClient()).DownloadStringTaskAsync(new Uri(url))
+            return result.Trim()
+        }
+
     let createSqlServer
         serverName
         (location: string)
@@ -228,27 +234,57 @@ module SqlServer =
             // check if server exists
             // do i need to?
 
-            let! servicePrincipal = azure.AccessManagement.ServicePrincipals.GetByIdAsync (credential.ClientId)
-            let credentialName = servicePrincipal.Name
+            report "Attempting create sql server"
+            report "Getting ad user name"
 
-            let! sqlServer =
-                azure.SqlServers
-                    .Define(serverName)
-                    .WithRegion(location)
-                    .WithExistingResourceGroup(rgName)
-                    .WithAdministratorLogin(userAuth.username)
-                    .WithAdministratorPassword(userAuth.password)
-                    .WithActiveDirectoryAdministrator(credentialName, credential.ClientId)
-                    .CreateAsync()
+            let! subscription = azure.Subscriptions.GetByIdAsync(azure.SubscriptionId)
+            let credentialName = subscription.DisplayName
+                // We're assuming the subscription name is also valid as an AD managed identity
+            report "Got credential name: %s" credentialName
+            report "Checking existing"
 
-            report "Created SqlServer %s" sqlServer.FullyQualifiedDomainName
-            report "SqlServer using user credential: %s" credentialName
-            report
-                "Auth\n\tuser: %s\n\tpassword: %s"
-                    userAuth.username
-                    userAuth.password
+            let ipsCheck =
+                [ getUrl "https://checkip.amazonaws.com"
+                  getUrl "https://ipinfo.io/ip"
+                ] |> Task.WhenAll
 
-            return sqlServer
+            let! existingServer =
+                azure.SqlServers.GetByResourceGroupAsync(rgName, serverName)
+
+            if existingServer <> null then
+                report "Found existing SqlServer, using"
+                return existingServer
+            else
+                report "Requesting SqlServer: %s" serverName
+                report
+                    "Auth\n\tuser: %s\n\tpassword: %s"
+                        userAuth.username
+                        userAuth.password
+
+                let! ips = ipsCheck
+                let ip = ips.[0]
+                let ipsMatch = ips |> Seq.forall (fun x -> x = ip )
+
+                if not ipsMatch then
+                    failwithf "Ip sources don't agree on public ip: %s" (String.concat ", " ips)
+                else
+                    report "Client ip: %s" ip
+
+                let! sqlServer =
+                    azure.SqlServers
+                        .Define(serverName)
+                        .WithRegion(location)
+                        .WithExistingResourceGroup(rgName)
+                        .WithAdministratorLogin(userAuth.username)
+                        .WithAdministratorPassword(userAuth.password)
+                        .WithActiveDirectoryAdministrator(credentialName, credential.ClientId)
+                        .WithNewFirewallRule(ip)
+                        .CreateAsync()
+
+                report "Created SqlServer %s" sqlServer.FullyQualifiedDomainName
+                report "SqlServer using user credential: %s" credentialName
+
+                return sqlServer
         }
 
     let createSqlServerRngUser
@@ -262,6 +298,7 @@ module SqlServer =
             location
             rgName
             databases
-            { username = generateStringBasedOnGuid "u" 20
-              password = generateStringBasedOnGuid "" 128 }
+            { username = generateStringBasedOnGuid "u" 20 // guarantee starts with letter
+              password = generateStringBasedOnGuid "1!Aa" 128 // guarantee meets validation reqs
+            }
 
