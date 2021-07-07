@@ -12,6 +12,7 @@ open Microsoft.Azure.Management
 open Microsoft.Azure.Management.Fluent
 open Microsoft.Azure.Management.Storage.Fluent
 open Microsoft.Azure.Management.Storage.Fluent.Models
+open Microsoft.Azure.Management.Sql.Fluent.Models
 open Microsoft.Azure.Management.Graph.RBAC.Fluent
 open Microsoft.Azure.Management.ResourceManager.Fluent
 open Microsoft.Azure.Management.ResourceManager.Fluent.Core
@@ -301,4 +302,29 @@ module SqlServer =
             { username = generateStringBasedOnGuid "u" 20 // guarantee starts with letter
               password = generateStringBasedOnGuid "1!Aa" 128 // guarantee meets validation reqs
             }
+
+    let createSqlDatabase
+        databaseName
+        (sqlServer: ISqlServer)
+        = task {
+            report "Creating database %s on server %s" databaseName sqlServer.Name
+
+            let! existingDatabase =
+                sqlServer.Databases.GetAsync(databaseName)
+
+            if existingDatabase <> null then
+                report "Using existing database"
+
+                return existingDatabase
+            else
+                let! database =
+                    sqlServer.Databases
+                        .Define(databaseName)
+                        .WithServiceObjective(ServiceObjectiveName.Free)
+                        .CreateAsync()
+
+                report "Created database"
+
+                return database
+        }
 
