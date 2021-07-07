@@ -219,10 +219,43 @@ module SqlServer =
         { username : string
           password : string }
 
-    let getUrl url =
+    let getUrl =
+        let client = new System.Net.Http.HttpClient()
+
+        fun (url: string) ->
+            task {
+                let! result = client.GetStringAsync url
+                return result.Trim()
+            }
+
+    // Gets public ip from api's, if first 3 parts match then return range
+    let getPublicIpRange () =
         task {
-            let! result = (new System.Net.WebClient()).DownloadStringTaskAsync(new Uri(url))
-            return result.Trim()
+            let! ips =
+                [ getUrl "https://checkip.amazonaws.com"
+                  getUrl "https://ipinfo.io/ip"
+                  getUrl "https://api.ipify.org"
+                ] |> Task.WhenAll
+
+            let ipsMatchFirst3Parts =
+                let first3Parts (ipString: string) =
+                    ipString.Split(".") |> Seq.take 3 |> String.concat "."
+
+                let ipFirst3Parts = ips.[0] |> first3Parts
+
+                ips
+                |> Seq.forall (fun x -> x |> first3Parts = ipFirst3Parts )
+
+            if not ipsMatchFirst3Parts then
+                failwithf "Ip sources don't agree on public ip first 3 parts: %s" (String.concat ", " ips)
+
+            let sortedIps = ips |> Array.sort
+
+            let lowest = sortedIps |> Array.head
+            let highest = sortedIps |> Array.last
+            // TODO Should I add padding to these ip ranges to increase chance our actual db connection is in range?
+
+            return lowest, highest
         }
 
     let createSqlServer
@@ -244,16 +277,23 @@ module SqlServer =
             report "Got credential name: %s" credentialName
             report "Checking existing"
 
-            let ipsCheck =
-                [ getUrl "https://checkip.amazonaws.com"
-                  getUrl "https://ipinfo.io/ip"
-                ] |> Task.WhenAll
+            let publicIpRangeWork = getPublicIpRange()
 
             let! existingServer =
                 azure.SqlServers.GetByResourceGroupAsync(rgName, serverName)
 
+            let provisionFirewallRuleName = "kita_provision"
+
             if existingServer <> null then
                 report "Found existing SqlServer, using"
+                do! existingServer.FirewallRules.DeleteAsync(provisionFirewallRuleName)
+                let! (lowIp, highIp) = publicIpRangeWork
+                let! rule =
+                    existingServer.FirewallRules
+                        .Define(provisionFirewallRuleName)
+                        .WithIPAddressRange(lowIp, highIp)
+                        .CreateAsync()
+
                 return existingServer
             else
                 report "Requesting SqlServer: %s" serverName
@@ -262,14 +302,7 @@ module SqlServer =
                         userAuth.username
                         userAuth.password
 
-                let! ips = ipsCheck
-                let ip = ips.[0]
-                let ipsMatch = ips |> Seq.forall (fun x -> x = ip )
-
-                if not ipsMatch then
-                    failwithf "Ip sources don't agree on public ip: %s" (String.concat ", " ips)
-                else
-                    report "Client ip: %s" ip
+                let! (lowIp, highIp) = publicIpRangeWork
 
                 let! sqlServer =
                     azure.SqlServers
@@ -279,7 +312,7 @@ module SqlServer =
                         .WithAdministratorLogin(userAuth.username)
                         .WithAdministratorPassword(userAuth.password)
                         .WithActiveDirectoryAdministrator(credentialName, credential.ClientId)
-                        .WithNewFirewallRule(ip)
+                        .WithNewFirewallRule(lowIp, highIp, provisionFirewallRuleName)
                         .CreateAsync()
 
                 report "Created SqlServer %s" sqlServer.FullyQualifiedDomainName
