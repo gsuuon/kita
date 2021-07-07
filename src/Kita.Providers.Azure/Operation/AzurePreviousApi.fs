@@ -297,8 +297,8 @@ module SqlServer =
                 return existingServer
             else
                 report "Requesting SqlServer: %s" serverName
-                report
-                    "Auth\n\tuser: %s\n\tpassword: %s"
+                reportSecret
+                    "Using (record this, not recoverable) auth\n\tuser: %s\n\tpassword: %s"
                         userAuth.username
                         userAuth.password
 

@@ -7,6 +7,7 @@ open Kita.Providers.Azure.Client
 open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Activation
+open Kita.Providers.Azure.Utility.LocalLog
 
 let provisionCloudGroup appName location = task {
     printfn "Provisioning %s for %s" appName location
@@ -116,14 +117,14 @@ let provision
     do! AppService.listAllFunctions functionApp
 
     let proxyName = "Proxy"
-    printfn "Adding key for proxy trigger: %s" proxyName
+    report "Adding key for proxy trigger: %s" proxyName
     let! funKey = functionApp.AddFunctionKeyAsync(proxyName, "devKey", null)
 
-    printfn "Key -- %s | %s" funKey.Name funKey.Value
+    reportSecret "Key -- %s | %s" funKey.Name funKey.Value
 
-    printfn "\n\nAccess endpoints at\n"
+    reportSecret "\n\nAccess endpoints at\n"
     let appUri = sprintf "https://%s" functionApp.DefaultHostName
-    printfn "%s/api/<endpoint>?code=%s" appUri funKey.Value
+    reportSecret "%s/api/<endpoint>?code=%s" appUri funKey.Value
 
     printfn "\n\nAll done :3"
 }
