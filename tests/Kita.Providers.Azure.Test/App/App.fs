@@ -106,7 +106,7 @@ let app =
     let! roomUsers = CloudCache<string, string list>("active-rooms")
     let! lastActive = CloudMap<string, DateTime>("users-last-active")
     let! webPubSub = AzureWebPubSub("realtime")
-    let! sqlServer = AzureDatabaseSQL("azsqlserver", createAppDbCtx)
+    let! sqlServer = AzureDatabaseSQL("kita-test-db", createAppDbCtx)
 
     let! lg = CloudLog()
 
@@ -235,7 +235,11 @@ let app =
                 | None ->
                     return ok <| sprintf "Didn't find user named %s" userName
                 | Some user ->
-                    return ok <| sprintf "Found user %s with permissions: %A" user.name user.permissions
+                    return
+                        ok
+                        <| sprintf "Found user %s with bio: %A"
+                            user.name
+                            user.bio
         })
     }
 

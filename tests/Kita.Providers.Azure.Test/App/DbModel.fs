@@ -1,16 +1,18 @@
 namespace AzureApp.DbModel
 
-open System.ComponentModel.DataAnnotations
 open Microsoft.EntityFrameworkCore
+open System.ComponentModel.DataAnnotations
 open EntityFrameworkCore.FSharp.Extensions
 
 
+[<CLIMutable>]
 type User =
     { [<Key>] Id : int
       name : string
-      permissions : string list
+      bio : string
     }
 
+[<CLIMutable>]
 type Room =
     { [<Key>] Id : int
       name : string
@@ -26,3 +28,9 @@ type ApplicationDbContext() =
 
     [<DefaultValue>] val mutable rooms : DbSet<Room>
     member this.Rooms with get() = this.rooms and set v = this.rooms <- v
+
+    override _.OnConfiguring (options) =
+        options.UseSqlServer() |> ignore
+
+    override _.OnModelCreating modelBuilder =
+        modelBuilder.RegisterOptionTypes()
