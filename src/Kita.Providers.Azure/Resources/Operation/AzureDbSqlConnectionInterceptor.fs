@@ -54,7 +54,11 @@ module AzureIdentityToken =
             finally
                 lock.ExitWriteLock()
 
-    let credential = new EnvironmentCredential()
+    let credential =
+        new ChainedTokenCredential(
+            new ManagedIdentityCredential(),
+            new EnvironmentCredential()
+        )
             
     module TokenCache =
         let private scopes = [|"https://database.windows.net/.default"|]
