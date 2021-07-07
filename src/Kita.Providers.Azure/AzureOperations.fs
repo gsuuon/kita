@@ -126,5 +126,7 @@ let provision
     let appUri = sprintf "https://%s" functionApp.DefaultHostName
     reportSecret "%s/api/<endpoint>?code=%s" appUri funKey.Value
 
+    report "To connect to streaming logs with az cli:\n\taz webapp log tail --name %s --resource-group %s" functionApp.Name rgName
+
     printfn "\n\nAll done :3"
 }
