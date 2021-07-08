@@ -80,10 +80,6 @@ let provision
     let! blobUri = blobUriWork
     let! functionApp = AppService.createFunctionApp appName appPlan rgName saName
 
-    printfn "Stopping function app"
-    do! functionApp.StopAsync()
-    printfn "Stopped function app"
-
     let! updatedFunctionApp =
         seq {
             yield! environmentVariablesFromResourceProvisions
@@ -94,10 +90,6 @@ let provision
         |> AppService.updateFunctionAppSettings functionApp
 
     printfn "Deployed app: %s" functionApp.Name
-
-    printfn "Starting function app"
-    do! functionApp.StartAsync()
-    printfn "Started function app"
 
     try
         printfn "Syncing triggers"
