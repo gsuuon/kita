@@ -6,6 +6,7 @@ open FSharp.Control.Tasks
 
 open Microsoft.EntityFrameworkCore
 open Microsoft.EntityFrameworkCore.Diagnostics
+open Microsoft.Azure.Management.AppService.Fluent
 
 open Kita.Core
 open Kita.Utility
@@ -30,10 +31,15 @@ type InjectableLogger =
 type AzureProvider(appName, location) =
     let mutable cloudTasks = []
     let mutable provisionRequests = []
+    let mutable provisionRequestsWithApp = []
 
     /// rgName -> saName -> unit task
     let requestProvision provision =
         provisionRequests <- provision :: provisionRequests
+
+    /// IFunctionApp -> unit task
+    let requestProvisionAfterApp provision =
+        provisionRequestsWithApp <- provision :: provisionRequestsWithApp
 
     let connectionString = Waiter<string>()
 
@@ -42,6 +48,18 @@ type AzureProvider(appName, location) =
             member _.Info x = printfn "INFO: %s" x
             member _.Warn x = printfn "WARN: %s" x
             member _.Error x = printfn "ERROR: %s" x
+        }
+
+    let executeRequests executor requests = task {
+        let! envVariables =
+            requests
+            |> List.map executor
+            |> Task.WhenAll<(string * string) option>
+
+        return
+            envVariables
+            |> Array.choose id
+            |> Array.toSeq
         }
 
     member _.Generate(conString) =
@@ -55,20 +73,15 @@ type AzureProvider(appName, location) =
     member _.Attach (conString: string) =
         connectionString.Set conString
         
-    member _.ExecuteProvisionRequests (rgName, saName) = task {
-        printfn "Provisioning resources"
+    member _.ExecuteProvisionRequests (rgName, saName) =
+        executeRequests
+        <| fun req -> req rgName saName
+        <| provisionRequests
 
-        let! envVariables =
-            provisionRequests
-            |> List.map (fun req -> req rgName saName)
-            |> Task.WhenAll<(string * string) option>
-
-        return
-            envVariables
-            |> Array.choose id
-            |> Array.toSeq
-
-        }
+    member _.ExecuteProvisionRequestsAfterApp (app: IFunctionApp) =
+        executeRequests
+        <| fun req -> req app
+        <| provisionRequestsWithApp
 
     member _.CloudTasks = cloudTasks
 
@@ -96,6 +109,7 @@ type AzureProvider(appName, location) =
                 location
                 cloudTasks
                 this.ExecuteProvisionRequests
+                this.ExecuteProvisionRequestsAfterApp
             |> Async.AwaitTask
 
         member this.Activate () =
@@ -189,9 +203,11 @@ type AzureProvider(appName, location) =
                     .AddInterceptors(AzureConnectionInterceptor())
                     .Options
 
-            requestProvision
-            <| fun rgName saName -> task {
+            requestProvisionAfterApp
+            <| fun app -> task {
                 report "Creating sql server.."
+                let rgName = app.ResourceGroupName
+
                 let! sqlServer =
                     SqlServer.createSqlServerRngUser
                         serverName

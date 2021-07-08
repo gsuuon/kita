@@ -7,11 +7,11 @@ open System
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Microsoft.Azure.Management.AppService.Fluent
 open Microsoft.Azure.Management
 open Microsoft.Azure.Management.Fluent
 open Microsoft.Azure.Management.Storage.Fluent
 open Microsoft.Azure.Management.Storage.Fluent.Models
+open Microsoft.Azure.Management.AppService.Fluent
 open Microsoft.Azure.Management.Sql.Fluent.Models
 open Microsoft.Azure.Management.Graph.RBAC.Fluent
 open Microsoft.Azure.Management.ResourceManager.Fluent
@@ -79,6 +79,7 @@ module AppService =
                     .WithExistingResourceGroup(rgName)
                     .WithExistingStorageAccount(storageAccount)
                     .WithAppSettings(settings)
+                    .WithSystemAssignedManagedServiceIdentity()
                     .CreateAsync()
 
             report "Created functionApp: %s on storage: %s"
@@ -376,4 +377,3 @@ module SqlServer =
 
                 return database
         }
-

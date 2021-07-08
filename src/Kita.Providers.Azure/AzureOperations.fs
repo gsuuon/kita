@@ -8,6 +8,7 @@ open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Activation
 open Kita.Providers.Azure.Utility.LocalLog
+open Microsoft.Azure.Management.AppService.Fluent
 
 let provisionCloudGroup appName location = task {
     printfn "Provisioning %s for %s" appName location
@@ -52,12 +53,14 @@ let provision
     cloudTasks
     (executeProvisionRequests:
         string * string -> Task<(string * string) seq>)
+    (executeProvisionRequestsAfterApp:
+        IFunctionApp -> Task<(string * string) seq>)
     = task {
 
     let! (conString, rgName, saName) =
         provisionCloudGroup appName location
 
-    let execProvisionRequestsWork =
+    let executeProvisionsWork =
         executeProvisionRequests(rgName, saName)
 
     let! zipProject = 
@@ -72,24 +75,31 @@ let provision
         // but we're only trying to copy
         // is there some way around this?
 
-    let! environmentVariablesFromResourceProvisions = execProvisionRequestsWork
-    printfn "Finished provisioning resources"
 
     let blobUriWork = uploadZipGetBlobSas conString zipProject
     let! appPlan = AppService.createAppServicePlan appName location rgName
     let! blobUri = blobUriWork
     let! functionApp = AppService.createFunctionApp appName appPlan rgName saName
 
+    let executeProvisionsAfterAppWork =
+        executeProvisionRequestsAfterApp functionApp
+
+    report "Waiting for provision requests to finish"
+    let! envVarsFromProvisions = executeProvisionsWork
+    let! envVarsFromProvisionsAfterApp = executeProvisionsAfterAppWork
+    report "Finished provision requests"
+
+    report "Updating app settings"
     let! updatedFunctionApp =
         seq {
-            yield! environmentVariablesFromResourceProvisions
+            yield! envVarsFromProvisions
+            yield! envVarsFromProvisionsAfterApp
             yield AzureConnectionStringVarName, conString
             yield "WEBSITE_RUN_FROM_PACKAGE", blobUri 
         }
         |> dict
         |> AppService.updateFunctionAppSettings functionApp
-
-    printfn "Deployed app: %s" functionApp.Name
+    report "Finished updating settings"
 
     try
         printfn "Syncing triggers"
