@@ -251,9 +251,23 @@ module SqlServer =
 
             let sortedIps = ips |> Array.sort
 
-            let lowest = sortedIps |> Array.head
-            let highest = sortedIps |> Array.last
-            // TODO Should I add padding to these ip ranges to increase chance our actual db connection is in range?
+            let modifyLast fn (ip: string) =
+                let parts = ip.Split(".")
+
+                seq {
+                    yield! parts |> Seq.take (parts.Length - 1)
+                    yield parts |> Seq.last |> int |> fn |> string
+                } |> String.concat "."
+
+            let lowest =
+                sortedIps
+                |> Array.head
+                |> modifyLast ((fun x -> x - 10) >> max 0)
+
+            let highest =
+                sortedIps
+                |> Array.last
+                |> modifyLast ((+) 10 >> min 255 )
 
             return lowest, highest
         }
@@ -288,6 +302,7 @@ module SqlServer =
                 report "Found existing SqlServer, using"
                 do! existingServer.FirewallRules.DeleteAsync(provisionFirewallRuleName)
                 let! (lowIp, highIp) = publicIpRangeWork
+                report "Allowing ips: [%s; %s]" lowIp highIp
                 let! rule =
                     existingServer.FirewallRules
                         .Define(provisionFirewallRuleName)
@@ -303,6 +318,7 @@ module SqlServer =
                         userAuth.password
 
                 let! (lowIp, highIp) = publicIpRangeWork
+                report "Allowing ips: [%s; %s]" lowIp highIp
 
                 let! sqlServer =
                     azure.SqlServers
