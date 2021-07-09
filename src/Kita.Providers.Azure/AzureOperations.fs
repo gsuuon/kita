@@ -39,9 +39,8 @@ let uploadZipGetBlobSas conString (generatedZip: byte[]) = task {
     printfn "Uploaded archive"
 
     let! blobUri =
-        Blobs.BlobGenerateSas
+        Blobs.generateSasInfinite
             BlobPermission.Read
-            1.0
             blobClient
 
     return blobUri.AbsoluteUri
@@ -56,6 +55,7 @@ let provision
     (executeProvisionRequestsAfterApp:
         IFunctionApp -> Task<(string * string) seq>)
     = task {
+    report "Provisioning app"
 
     let! (conString, rgName, saName) =
         provisionCloudGroup appName location
