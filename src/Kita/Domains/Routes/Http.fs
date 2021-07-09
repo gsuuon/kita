@@ -38,6 +38,8 @@ type HandlerAdapter<'T, 'R> =
 module Helpers =
     let ok body : RawResponse = { status = OK; body = body }
 
+    let okf format = Printf.ksprintf ok format
+
     let canonMethod (methodString: string) =
         methodString.ToLower()
 

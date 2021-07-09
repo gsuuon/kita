@@ -174,7 +174,7 @@ let app =
 
                 let uri = wpsClient.GetClientAccessUri(userId, roomPermissions)
                 activeUsers.Enqueue [userId] |> Async.Start
-                return ok <| sprintf "Client access uri: %s" uri.AbsoluteUri
+                return okf "Client access uri: %s" uri.AbsoluteUri
             | None ->
                 return ok "Missing userId query param"
         })
@@ -186,7 +186,7 @@ let app =
                 | Some roomId ->
                     do! addUserToRoom userId roomId
 
-                    return ok <| sprintf "Added %s to %s" userId roomId
+                    return okf "Added %s to %s" userId roomId
                 | None ->
                     return ok "Missing roomId query param"
             | None ->
@@ -201,7 +201,7 @@ let app =
                 let! usersOpt = roomUsers.TryFind roomId
                 match usersOpt with
                 | Some users ->
-                    return ok <| sprintf "Found %i users: %s" users.Length (users |> String.concat ", ")
+                    return okf "Found %i users: %s" users.Length (users |> String.concat ", ")
                 | None ->
                     return ok "Room hasn't been used"
         })
@@ -237,7 +237,7 @@ let app =
             let! wpsClient = webPubSub.Client.GetAsync
             let message = readBody req
             wpsClient.SendToAll message |> ignore
-            return ok <| sprintf "Sent message to all: %s" message
+            return okf "Sent message to all: %s" message
         })
     }
 }
