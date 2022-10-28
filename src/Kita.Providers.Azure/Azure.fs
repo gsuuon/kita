@@ -207,6 +207,23 @@ type AzureProvider(appName, location) =
             <| fun app -> task {
                 report "Creating sql server.."
                 let rgName = app.ResourceGroupName
+                
+                let adGroupName = $"kita_{app.Name}_sql_{serverName}"
+                (* let waitAdGroup = task { *)
+                (*     let! adGroup = *)
+                (*         ActiveDirectory.createADGroup adGroupName *)
+                (*         (1* 403 forbidden *1) *)
+                (*         (1* subscription id not ad admin *1) *)
+                (*         (1* should i just require an ad tenant for the app? *1) *)
+                (*         (1* or app has admin rights to a tenant, and advise users *1) *)
+                (*         (1* create a new tenant just for kita apps? *1) *)
+
+                (*     let! _updated = *)
+                (*         app.SystemAssignedManagedServiceIdentityPrincipalId *)
+                (*         |> ActiveDirectory.addMemberToADGroup adGroup *)
+
+                (*     return () *)
+                (* } *)
 
                 let! sqlServer =
                     SqlServer.createSqlServerRngUser
@@ -214,6 +231,8 @@ type AzureProvider(appName, location) =
                         location
                         rgName
                         []
+                
+                // Assume that the app managed identity name is app name
                 
                 let dbName =
                     (typeof<'T>).Name
@@ -248,6 +267,10 @@ type AzureProvider(appName, location) =
 
                 do! dbCtx.Database.MigrateAsync()
                 report "Migrated database %s" serverName
+                
+                (* do! waitAdGroup *)
+
+                // TODO-next add create user sql stuff here
 
                 return Some (connectionStringEnvVarName, connectionString)
             }

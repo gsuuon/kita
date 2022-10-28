@@ -119,16 +119,15 @@ let provision
     do! AppService.listAllFunctions functionApp
 
     let proxyName = "Proxy"
-    report "Adding key for proxy trigger: %s" proxyName
-    let! funKey = functionApp.AddFunctionKeyAsync(proxyName, "devKey", null)
+    let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "devKey", null)
 
-    reportSecret "Key -- %s | %s" funKey.Name funKey.Value
+    reportSecret "Proxy trigger key -- %s | %s" funKey.Name funKey.Value
+    reportSecret "Access endpoints at\nhttps://%s/api/<endpoint>?code=%s"
+        functionApp.DefaultHostName funKey.Value
 
-    reportSecret "\n\nAccess endpoints at\n"
-    let appUri = sprintf "https://%s" functionApp.DefaultHostName
-    reportSecret "%s/api/<endpoint>?code=%s" appUri funKey.Value
-
-    report "To connect to streaming logs with az cli:\n\taz webapp log tail --name %s --resource-group %s" functionApp.Name rgName
+    report "To stream logs you may need to interact with the Azure portal. Hitting refresh on the app page seems to work. Run:\naz webapp log tail --name %s --resource-group %s" functionApp.Name rgName
+        // there's a sentinel file that needs to be touched for log streaming to happen
+        // could do this via kudu api or something here
 
     printfn "\n\nAll done :3"
 }

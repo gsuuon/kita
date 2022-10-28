@@ -75,6 +75,7 @@ open EntityFrameworkCore.FSharp.Extensions
 open Microsoft.EntityFrameworkCore
 open Microsoft.EntityFrameworkCore.SqlServer
 
+
 let app =
     Block<AzureProvider, AppState> "chat-app" {
         // App names must be between 2-60 characters alphanumeric + non-leading hyphen
@@ -98,41 +99,6 @@ let app =
     let! sqlServer = AzureDatabaseSQL("kita-test-db", ApplicationDbContext)
 
     let! lg = CloudLog()
-
-    let! _updateLastActive =
-        CloudTask("0 * * * * *",
-            fun () -> async {
-                let! wpsClient = webPubSub.Client.GetAsync
-                let! lastKnownActiveUsers = activeUsers.Dequeue 32
-                    // Dequeue > 32 fails, invalid value. Range is from 1 to 32
-
-                let currentlyActiveUsers =
-                    // Ridiculous way to do this
-                    lastKnownActiveUsers
-                    |> List.map
-                        (fun user ->
-                            task {
-                                let! userExistsRes = wpsClient.UserExistsAsync user
-                                let userExists = userExistsRes.Value
-
-                                if userExists then
-                                    lastActive.Set (user, DateTime.UtcNow) |> Async.Start
-
-                                return user, userExists
-                            } |> Async.AwaitTask
-                        )
-                    |> Async.Parallel
-                    |> Async.RunSynchronously
-                    |> Array.choose
-                        (fun (userId, exists) -> 
-                            if exists then
-                                Some userId
-                            else
-                                None )
-                    |> Array.toList
-
-                do! activeUsers.Enqueue currentlyActiveUsers
-            })
 
     let addUserToRoom userId roomId = async {
         // Could check permissions first
@@ -211,24 +177,42 @@ let app =
             | None ->
                 return ok "Missing userName query param"
             | Some userName ->
-                use db = sqlServer.GetContext()
+                let cred = Resources.Operation.AzureIdentityToken.credential
+                printf "using credential: %A" cred
 
-                let userFound =
-                    query {
-                        for user in db.Users do
-                        where (user.name = userName)
-                        select user
-                    } |> Seq.tryHead
+                try
+                    printf "trying to get context"
+                    use db = sqlServer.GetContext()
+                    printf "got context, trying query"
 
-                match userFound with
-                | None ->
-                    return ok <| sprintf "Didn't find user named %s" userName
-                | Some user ->
-                    return
-                        ok
-                        <| sprintf "Found user %s with bio: %A"
-                            user.name
-                            user.bio
+                    let userFound =
+                        query {
+                            for user in db.Users do
+                            where (user.name = userName)
+                            select user
+                        } |> Seq.tryHead
+                    printf "got query"
+
+                    match userFound with
+                    | None ->
+                        return okf "Didn't find user named %s" userName
+                    | Some user ->
+                        return
+                            okf "Found user %s with bio: %A"
+                                user.name user.bio
+                with error ->
+
+                    return okf "Failed credential %A\n%A" cred error
+        })
+        
+        get "version" (fun _ -> async {
+            return
+                Reflection
+                    .Assembly
+                    .GetExecutingAssembly()
+                    .GetName()
+                    .Version
+                |> okf "Version: %A"
         })
     }
 

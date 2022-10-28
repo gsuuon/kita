@@ -117,3 +117,31 @@ Looks like if host.json gets rewritten, that at least triggers a restart. Should
 There are many varied restrictions when it comes to naming resources. Probably not possible to accurately cover all of these, especially if they change.
 
 https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules#microsoftstorage
+
+
+### SQL automated authentication with app
+
+https://github.com/MicrosoftDocs/sql-docs/issues/2323
+
+Need to use a workaround to give app's system managed identity access to sql server. Options are:
+
+**Use the hexed object id + type**
+CREATE USER [user-group-name]  WITH SID=0x70727A49A319301BC8F1934918799E49, TYPE=X;
+X for group, E for application (from comments in issue)
+- Unsupported
++ No unnecessary additional roles or permissions (like directory reader)
++ No manual step in provisioning
+**Grab user credentials from az CLI**
+assuming it's a global administrator, and use that to give read directory permission to a generated group
+Does this actually work?
+- Means user needs to have az cli installed
+- Relies on permissions beyond just scope of subscription
+- CI/CD would need a global admin credential (barf)
++ No manual step in provisioning (provided az cli is set up)
+**Ask user to do it themselves via portal**
+can automate creation, then output a message saying permissions need to be granted manually until issue addressed and link to gh
+- Manual step in provisioning
+- Bad for CI/CD, or needs admin cred
++ App doesn't use permissions beyond subscription programmatically
+
+Based on that reasoning I'm going with the unsupported workaround.

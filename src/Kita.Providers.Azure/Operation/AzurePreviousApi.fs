@@ -9,11 +9,11 @@ open FSharp.Control.Tasks
 
 open Microsoft.Azure.Management
 open Microsoft.Azure.Management.Fluent
+open Microsoft.Azure.Management.AppService.Fluent
+open Microsoft.Azure.Management.Graph.RBAC.Fluent
+open Microsoft.Azure.Management.Sql.Fluent.Models
 open Microsoft.Azure.Management.Storage.Fluent
 open Microsoft.Azure.Management.Storage.Fluent.Models
-open Microsoft.Azure.Management.AppService.Fluent
-open Microsoft.Azure.Management.Sql.Fluent.Models
-open Microsoft.Azure.Management.Graph.RBAC.Fluent
 open Microsoft.Azure.Management.ResourceManager.Fluent
 open Microsoft.Azure.Management.ResourceManager.Fluent.Core
 open Microsoft.Azure.Management.ResourceManager.Fluent.Authentication
@@ -377,3 +377,63 @@ module SqlServer =
 
                 return database
         }
+
+module ActiveDirectory =
+    open System
+
+    let createADGroup
+        groupName
+        = task {
+        let! group =
+            azure.AccessManagement.ActiveDirectoryGroups
+                .Define(groupName)
+                .WithEmailAlias(groupName)
+                .CreateAsync()
+
+        return group
+
+        }
+
+    let addMemberToADGroup
+        (adGroup: IActiveDirectoryGroup)
+        (memberId: string)
+        = task {
+        let! updatedGroup =
+            adGroup
+                .Update()
+                .WithMember(memberId)
+                .ApplyAsync()
+
+        return updatedGroup
+        }
+
+    open System
+    
+    /// https://github.com/MicrosoftDocs/sql-docs/issues/2323
+    /// Can't execute create user without giving sql server a
+    /// managed system identity with Directory Reader role.
+    /// To give that role, need a user with Global Admin or 
+    /// Privileged Role Administrator.
+    /// More in Notes.md
+    let buildCreateUserSqlWorkaround
+        (objectType: string)
+        (objectName: string)
+        (objectId: string)
+        =
+        report "Building create user sql"
+        report "Object id: %s" objectId
+        let guid = Guid.Parse(objectId)
+        report "Guid: %A" guid
+
+        let idBytes = guid.ToByteArray()
+        let idBytesString =
+            BitConverter.ToString(idBytes).Replace("-","")
+        let sid = $"0x{idBytesString}"
+        report "Sid: %A" sid
+
+        $"""
+create user {objectName} with SID={sid}, TYPE={objectType};
+alter role db_datareader add member {objectName};
+alter role db_datawriter add member {objectName};
+        """
+
