@@ -6,6 +6,9 @@ open System.Threading.Tasks
 open Kita.Providers.Azure.Client
 open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
+open Kita.Providers.Azure.Activation
+open Kita.Providers.Azure.Utility.LocalLog
+open Microsoft.Azure.Management.AppService.Fluent
 
 let provisionCloudGroup appName location = task {
     printfn "Provisioning %s for %s" appName location
@@ -36,9 +39,8 @@ let uploadZipGetBlobSas conString (generatedZip: byte[]) = task {
     printfn "Uploaded archive"
 
     let! blobUri =
-        Blobs.BlobGenerateSas
+        Blobs.generateSasInfinite
             BlobPermission.Read
-            1.0
             blobClient
 
     return blobUri.AbsoluteUri
@@ -50,12 +52,15 @@ let provision
     cloudTasks
     (executeProvisionRequests:
         string * string -> Task<(string * string) seq>)
+    (executeProvisionRequestsAfterApp:
+        IFunctionApp -> Task<(string * string) seq>)
     = task {
+    report "Provisioning app"
 
     let! (conString, rgName, saName) =
         provisionCloudGroup appName location
 
-    let execProvisionRequestsWork =
+    let executeProvisionsWork =
         executeProvisionRequests(rgName, saName)
 
     let! zipProject = 
@@ -70,32 +75,31 @@ let provision
         // but we're only trying to copy
         // is there some way around this?
 
-    let! environmentVariablesFromResourceProvisions = execProvisionRequestsWork
-    printfn "Finished provisioning resources"
 
     let blobUriWork = uploadZipGetBlobSas conString zipProject
     let! appPlan = AppService.createAppServicePlan appName location rgName
     let! blobUri = blobUriWork
     let! functionApp = AppService.createFunctionApp appName appPlan rgName saName
 
-    printfn "Stopping function app"
-    do! functionApp.StopAsync()
-    printfn "Stopped function app"
+    let executeProvisionsAfterAppWork =
+        executeProvisionRequestsAfterApp functionApp
 
+    report "Waiting for provision requests to finish"
+    let! envVarsFromProvisions = executeProvisionsWork
+    let! envVarsFromProvisionsAfterApp = executeProvisionsAfterAppWork
+    report "Finished provision requests"
+
+    report "Updating app settings"
     let! updatedFunctionApp =
         seq {
-            yield! environmentVariablesFromResourceProvisions
-            yield "Kita_AzureNative_ConnectionString", conString
+            yield! envVarsFromProvisions
+            yield! envVarsFromProvisionsAfterApp
+            yield AzureConnectionStringVarName, conString
             yield "WEBSITE_RUN_FROM_PACKAGE", blobUri 
         }
         |> dict
         |> AppService.updateFunctionAppSettings functionApp
-
-    printfn "Deployed app: %s" functionApp.Name
-
-    printfn "Starting function app"
-    do! functionApp.StartAsync()
-    printfn "Started function app"
+    report "Finished updating settings"
 
     try
         printfn "Syncing triggers"
@@ -115,14 +119,15 @@ let provision
     do! AppService.listAllFunctions functionApp
 
     let proxyName = "Proxy"
-    printfn "Adding key for proxy trigger: %s" proxyName
-    let! funKey = functionApp.AddFunctionKeyAsync(proxyName, "devKey", null)
+    let! funKey = functionApp.AddFunctionKeyAsync("Proxy", "devKey", null)
 
-    printfn "Key -- %s | %s" funKey.Name funKey.Value
+    reportSecret "Proxy trigger key -- %s | %s" funKey.Name funKey.Value
+    reportSecret "Access endpoints at\nhttps://%s/api/<endpoint>?code=%s"
+        functionApp.DefaultHostName funKey.Value
 
-    printfn "\n\nAccess endpoints at\n"
-    let appUri = sprintf "https://%s" functionApp.DefaultHostName
-    printfn "%s/api/<endpoint>?code=%s" appUri funKey.Value
+    report "To stream logs you may need to interact with the Azure portal. Hitting refresh on the app page seems to work. Run:\naz webapp log tail --name %s --resource-group %s" functionApp.Name rgName
+        // there's a sentinel file that needs to be touched for log streaming to happen
+        // could do this via kudu api or something here
 
     printfn "\n\nAll done :3"
 }

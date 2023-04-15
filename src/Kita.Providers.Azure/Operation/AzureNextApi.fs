@@ -5,6 +5,7 @@ namespace Kita.Providers.Azure.AzureNextApi
 // https://docs.microsoft.com/en-us/dotnet/api/overview/azure/?view=azure-dotnet-preview
 
 open FSharp.Control.Tasks
+open Kita.Providers.Azure.Utility.LocalLog
 
 [<AutoOpen>]
 module Utility =
@@ -54,7 +55,7 @@ module Resources =
                 )
         let rg = rawResult.Value
 
-        printfn "Using resource group: %s" rg.Id
+        report "Using resource group: %s" rg.Id
 
         return rg
         }
@@ -75,11 +76,11 @@ module Resources =
 
         let deploymentProperties = new DeploymentProperties(DeploymentMode.Incremental)
 
-        printfn "ARM Deployment %s template:\n%s"
+        report "ARM Deployment %s template:\n%s"
             deploymentName
             armTemplate
 
-        printfn "ARM Deployment %s parameters:\n%s"
+        report "ARM Deployment %s parameters:\n%s"
             deploymentName
             armParameters
 
@@ -87,6 +88,13 @@ module Resources =
         deploymentProperties.Parameters <- armParameters
 
         let! operation =
+            // TODO
+            // handle if a deployment already exists with given name
+            // throws an error
+            // could catch and if the error contains "is still active"
+            // then get a handle for that deployment, cancel it, and retry
+            // https://docs.microsoft.com/en-us/dotnet/api/azure.resourcemanager.resources.deploymentsoperations.cancel?view=azure-dotnet-preview
+
             resourceClient.Deployments.StartCreateOrUpdateAsync
                 ( rgName
                 , deploymentName
@@ -132,7 +140,7 @@ module Storage =
         let! storageAccount =
             rawResult.WaitForCompletionAsync().AsTask() |> rValue
 
-        printfn "Using storage account: %s" storageAccount.Id
+        report "Using storage account: %s" storageAccount.Id
 
         return storageAccount
 
@@ -153,7 +161,7 @@ module Storage =
 
             |> rValue
 
-        printfn "Using queue: %s" queue.Id
+        report "Using queue: %s" queue.Id
 
         return ()
 
@@ -173,7 +181,7 @@ module Storage =
                 , new BlobContainer() )
                 |> rValue
 
-        printfn "Using blob container as map: %s" blobContainer.Id
+        report "Using blob container as map: %s" blobContainer.Id
 
         return ()
 
@@ -194,7 +202,7 @@ module Storage =
                 )
             |> rValue
 
-        printfn "Using blob container: %s" x.Name
+        report "Using blob container: %s" x.Name
 
         return x
         }
@@ -225,7 +233,7 @@ module Storage =
 
         if keys.Count > 0 then
             let key = keys.[0]
-            printfn "First key permissions: %A" key.Permissions
+            report "First key permissions: %A" key.Permissions
 
             return key
 

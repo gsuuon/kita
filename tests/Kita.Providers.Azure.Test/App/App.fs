@@ -1,6 +1,11 @@
 module AzureApp.App
+#nowarn "0760"
+    // FS0760: It is recommended that objects supporting the IDisposable interface are created using the syntax 'new Type(args)', rather than 'Type(args)' or 'Type' as a function value representing the constructor, to indicate that resources may be owned by the generated value
+    // `use` x = db.GetContext()
 
 open System
+open FSharp.Control.Tasks
+
 open Kita.Core
 open Kita.Domains
 open Kita.Domains.Routes
@@ -13,27 +18,67 @@ open Kita.Providers.Azure
 open Kita.Providers.Azure.Resources.Definition
 
 type AppState =
-    { routeState : RouteState }
-    static member Empty = { routeState = RouteState.Empty }
+    { routeState : RouteState
+      authedRouteState : RouteState
+    }
+    static member Empty =
+        { routeState = RouteState.Empty
+          authedRouteState = RouteState.Empty
+        }
+
+let authedRoutesDomain =
+    { new UserDomain<_,_> with
+        member _.get s = s.authedRouteState
+        member _.set s rs = { s with authedRouteState = rs } }
+
+let authedRoutes =
+    RoutesBlock<AppState> authedRoutesDomain
+
+let routesDomain =
+    { new UserDomain<_,_> with
+        member _.get s = s.routeState
+        member _.set s rs = { s with routeState = rs } }
+
+let routes =
+    RoutesBlock<AppState> routesDomain
 
 type ChatMessage =
     { author : string
       body : string }
 
-let routesDomain = 
-    { new UserDomain<_,_> with
-        member _.get s = s.routeState
-        member _.set s rs = { s with routeState = rs } }
+type User =
+    { userId : string
+      permittedRooms : string list }
 
-let routes = RoutesBlock<AppState> routesDomain
+let roomsToPermissions roomList = seq {
+    for room in roomList do
+        yield "webpubsub.joinLeaveGroup."+room
+        yield "webpubsub.sendToGroup."+room
+}
+
+let getFirstQuery param (req: RawRequest) =
+    match req.queries.TryGetValue param with
+    | true, values ->
+        match values with
+        | [] -> None
+        | k::_rest -> Some k
+    | false, _ ->
+        None
+
+let readBody (req: RawRequest) =
+    req.body
+    |> Seq.toArray
+    |> Text.Encoding.UTF8.GetString
+
+open AzureApp.DbModel
+open EntityFrameworkCore.FSharp.Extensions
+open Microsoft.EntityFrameworkCore
+open Microsoft.EntityFrameworkCore.SqlServer
+
 
 let app =
-    Block<AzureProvider, AppState> "myaznativeapp" {
-
-    // TODO name is thrown away
-    // This should be the app name
-    // app names must be between 2-60 characters alphanumeric + non-leading hyphen
-    let! q = CloudQueue<string>("myaznatq")
+    Block<AzureProvider, AppState> "chat-app" {
+        // App names must be between 2-60 characters alphanumeric + non-leading hyphen
 
         // Naming rules for some common resources
         // 3 - 63 characters
@@ -43,127 +88,43 @@ let app =
         // lowercase
         // Reference: https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules#microsoftstorage
 
-    let! map = CloudMap<string, string>("myaznatmap")
-    let! chats = CloudMap<string, ChatMessage list>("chats-typed1")
-    let! webPubSub = AzureWebPubSub("realtimechat")
+    let! userPermissions = CloudMap<string, string list>("permissions")
+    let! activeUsers = CloudQueue<string>("active-users")
+        // On request client, add active user
+        // on task, check all users - if user Id still exists, add back to queue
+    let! roomUsers = CloudCache<string, string list>("active-rooms")
+    let! lastActive = CloudMap<string, DateTime>("users-last-active")
+    let! webPubSub = AzureWebPubSub("realtime")
+
+    let! sqlServer = AzureDatabaseSQL("kita-test-db", ApplicationDbContext)
 
     let! lg = CloudLog()
 
-    let! _task =
-        CloudTask("0 * * * * *",
-            fun () -> async {
-                let! items = q.Dequeue 1
+    let addUserToRoom userId roomId = async {
+        // Could check permissions first
 
-                for item in items do
-                    do! q.Enqueue [item + "boop"]
+        let addPubSub =
+            task {
+                let! wpsClient = webPubSub.Client.GetTask
+                let! x = wpsClient.AddUserToGroupAsync(roomId, userId)
+                
+                return x
+            }
 
-                if items.Length > 0 then
-                    lg.Info "Booped some snoots"
-                else
-                    lg.Warn "No snoots to boop"
-            })
+        lastActive.Set (userId, DateTime.UtcNow) |> Async.Start
 
-    let getFirstQuery param (req: RawRequest) =
-        match req.queries.TryGetValue param with
-        | true, values ->
-            match values with
-            | [] -> None
-            | k::_rest -> Some k
-        | false, _ ->
-            None
+        match! roomUsers.TryFind roomId with
+        | Some users ->
+            roomUsers.Set (roomId, userId :: users) |> Async.Start
+        | None ->
+            roomUsers.Set (roomId, [userId]) |> Async.Start
 
-    let readBody (req: RawRequest) =
-        req.body
-        |> Seq.toArray
-        |> Text.Encoding.UTF8.GetString
+        // Not waiting for anything to finish
+
+        return ()
+    }
 
     do! routes {
-        get "hi" (fun _ -> async {
-            let! xs = q.Dequeue 20
-            return ok <| sprintf "Got %A" xs
-        })
-
-        post "hi" (fun req -> async {
-            let text = readBody req
-            do! q.Enqueue [text]
-            return ok "Ok sent"
-        })
-
-        get "val" (fun req -> async {
-            let key = getFirstQuery "key" req
-            match key with
-            | Some k ->
-                let! x = map.TryFind k
-                match x with
-                | Some v ->
-                    return ok v
-                | None ->
-                    return ok <| sprintf "Didn't find that key %s" k
-            | None ->
-                return ok "No key in queries"
-        })
-
-        post "val" (fun req -> async {
-            let key = getFirstQuery "key" req
-
-            match key with
-            | Some k ->
-                let body = readBody req
-
-                do! map.Set (k, body)
-
-                lg.Info <| sprintf "Saved %A to %A" body k
-
-                return ok <| sprintf "Set %s" k
-
-            | None ->
-                return ok "No key in queries"
-        })
-
-        get "chat1" (fun req -> async {
-            let roomOpt = getFirstQuery "room" req
-            match roomOpt with
-            | Some room ->
-                let! messagesOpt = chats.TryFind room
-                match messagesOpt with
-                | Some messages ->
-                    let formattedMessages =
-                        messages
-                        |> List.map (fun msg -> sprintf "%s: %s" msg.author msg.body)
-                        |> String.concat "\n"
-                        
-                    return ok <| sprintf "Got messages:\n%s" formattedMessages
-                | None ->
-                    return ok <| sprintf "No messages in room %s" room
-            | None ->
-                return ok <| "No room specified"
-        })
-
-        post "chat1" (fun req -> async {
-            let roomOpt = getFirstQuery "room" req
-            match roomOpt with
-            | Some room ->
-                let authorOpt = getFirstQuery "author" req
-                match authorOpt with
-                | None ->
-                    return ok <| "No author specified"
-                | Some author ->
-                    let! messagesOpt = chats.TryFind room
-                    let chatMessage =
-                        { author = author
-                          body = readBody req }
-                        
-                    match messagesOpt with
-                    | None ->
-                        do! chats.Set(room, [chatMessage])
-                        return ok <| "Added message"
-                    | Some messages ->
-                        do! chats.Set(room, messages @ [chatMessage])
-                        return ok <| "Added message"
-            | None ->
-                return ok <| "No room specified"
-        })
-
         get "chat" (fun req -> async {
             let! wpsClient = webPubSub.Client.GetAsync
             match getFirstQuery "userId" req with
@@ -172,22 +133,95 @@ let app =
                     match getFirstQuery "rooms" req with
                     | Some rooms ->
                         rooms.Split(" ")
-                        |> Array.map (fun room -> [| "webpubsub.joinLeaveGroup."+room;  "webpubsub.sendToGroup."+room |])
-                        |> Array.concat
+                        |> roomsToPermissions
+                        |> Seq.toArray
                     | None ->
                         [||]
 
                 let uri = wpsClient.GetClientAccessUri(userId, roomPermissions)
-                return ok <| sprintf "Client access uri: %s" uri.AbsoluteUri
+                activeUsers.Enqueue [userId] |> Async.Start
+                return okf "Client access uri: %s" uri.AbsoluteUri
             | None ->
                 return ok "Missing userId query param"
         })
 
-        post "chat" (fun req -> async {
+        post "chat-add" (fun req -> async {
+            match getFirstQuery "userId" req with
+            | Some userId ->
+                match getFirstQuery "roomId" req with
+                | Some roomId ->
+                    do! addUserToRoom userId roomId
+
+                    return okf "Added %s to %s" userId roomId
+                | None ->
+                    return ok "Missing roomId query param"
+            | None ->
+                return ok "Missing userId query param"
+        })
+
+        get "chat-room-users" (fun req -> async {
+            match getFirstQuery "roomId" req with
+            | None -> 
+                return ok "Missing roomId query param"
+            | Some roomId ->
+                let! usersOpt = roomUsers.TryFind roomId
+                match usersOpt with
+                | Some users ->
+                    return okf "Found %i users: %s" users.Length (users |> String.concat ", ")
+                | None ->
+                    return ok "Room hasn't been used"
+        })
+
+        get "user" (fun req -> async {
+            match getFirstQuery "userName" req with
+            | None ->
+                return ok "Missing userName query param"
+            | Some userName ->
+                let cred = Resources.Operation.AzureIdentityToken.credential
+                printf "using credential: %A" cred
+
+                try
+                    printf "trying to get context"
+                    use db = sqlServer.GetContext()
+                    printf "got context, trying query"
+
+                    let userFound =
+                        query {
+                            for user in db.Users do
+                            where (user.name = userName)
+                            select user
+                        } |> Seq.tryHead
+                    printf "got query"
+
+                    match userFound with
+                    | None ->
+                        return okf "Didn't find user named %s" userName
+                    | Some user ->
+                        return
+                            okf "Found user %s with bio: %A"
+                                user.name user.bio
+                with error ->
+
+                    return okf "Failed credential %A\n%A" cred error
+        })
+        
+        get "version" (fun _ -> async {
+            return
+                Reflection
+                    .Assembly
+                    .GetExecutingAssembly()
+                    .GetName()
+                    .Version
+                |> okf "Version: %A"
+        })
+    }
+
+    do! authedRoutes {
+        post "chat-admin" (fun req -> async {
             let! wpsClient = webPubSub.Client.GetAsync
             let message = readBody req
             wpsClient.SendToAll message |> ignore
-            return ok <| sprintf "Sent message to all: %s" message
+            return okf "Sent message to all: %s" message
         })
     }
 }

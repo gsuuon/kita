@@ -4,19 +4,22 @@ namespace Kita.Providers.Azure.AzurePreviousApi
 // https://docs.microsoft.com/en-us/dotnet/api/overview/azure/?view=azure-dotnet
 
 open System
+open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Microsoft.Azure.Management.AppService.Fluent
 open Microsoft.Azure.Management
 open Microsoft.Azure.Management.Fluent
+open Microsoft.Azure.Management.AppService.Fluent
+open Microsoft.Azure.Management.Graph.RBAC.Fluent
+open Microsoft.Azure.Management.Sql.Fluent.Models
 open Microsoft.Azure.Management.Storage.Fluent
 open Microsoft.Azure.Management.Storage.Fluent.Models
-open Microsoft.Azure.Management.Graph.RBAC.Fluent
 open Microsoft.Azure.Management.ResourceManager.Fluent
 open Microsoft.Azure.Management.ResourceManager.Fluent.Core
 open Microsoft.Azure.Management.ResourceManager.Fluent.Authentication
 
 open Kita.Providers.Azure
+open Kita.Providers.Azure.Utility.LocalLog
 
 [<RequireQualifiedAccess>]
 [<AutoOpen>]
@@ -39,7 +42,7 @@ module Credential =
             .Authenticate(credential)
             .WithSubscription(AzureNextApi.Credential.subId())
 
-    printfn "Using subscription: %s" azure.SubscriptionId
+    report "Using subscription: %s" azure.SubscriptionId
 
 module AppService = 
     let createFunctionApp
@@ -56,7 +59,7 @@ module AppService =
             // We get existing based on only rgName and appName
 
         if existingFunctionApp <> null then
-            printfn "Using existing functionApp: %s"
+            report "Using existing functionApp: %s"
                         existingFunctionApp.Name
 
             return existingFunctionApp
@@ -76,9 +79,10 @@ module AppService =
                     .WithExistingResourceGroup(rgName)
                     .WithExistingStorageAccount(storageAccount)
                     .WithAppSettings(settings)
+                    .WithSystemAssignedManagedServiceIdentity()
                     .CreateAsync()
 
-            printfn "Created functionApp: %s on storage: %s"
+            report "Created functionApp: %s on storage: %s"
                 functionApp.Name
                 functionApp.StorageAccount.Name
 
@@ -93,7 +97,7 @@ module AppService =
                 return ()
             else
                 for (func: IFunctionEnvelope) in pagedCollection do
-                    printfn "Function: %s | %s"
+                    report "Function: %s | %s"
                         func.Name
                         func.Type
 
@@ -114,7 +118,7 @@ module AppService =
                 (rgName, appServicePlanName)
 
         if existing <> null then
-            printfn "Using existing app service plan: %s" existing.Name
+            report "Using existing app service plan: %s" existing.Name
             return existing
 
         else
@@ -126,7 +130,7 @@ module AppService =
                     .WithConsumptionPricingTier()
                     .CreateAsync()
 
-            printfn "Using app service plan: %s" appServicePlan.Name
+            report "Using app service plan: %s" appServicePlan.Name
 
             return appServicePlan
         }
@@ -136,7 +140,7 @@ module AppService =
         settings
         = task {
 
-        printfn "Updating app settings:\n%s"
+        report "Updating app settings:\n%s"
                 (settings
                 |> Seq.map
                     (fun (KeyValue(k,v)) ->
@@ -156,7 +160,7 @@ module AppService =
                 .WithAppSettings(settings)
                 .ApplyAsync()
 
-        printfn "Updated settings"
+        report "Updated settings"
 
         return functionApp
 
@@ -168,7 +172,7 @@ module AppService =
         (functionApp: IFunctionApp)
         = task {
 
-        printfn "Deploying blob.."
+        report "Deploying blob.."
 
         let! update =
         // This fails a lot?
@@ -184,8 +188,252 @@ module AppService =
                 )
                 .ApplyAsync()
 
-        printfn "Deployed %s" functionApp.Name
+        report "Deployed %s" functionApp.Name
 
         return update
 
         }
+
+module SqlServer =
+    open Microsoft.Azure.Management.Sql.Fluent
+
+    let rec generateStringBasedOnGuid (start: string) desiredLength =
+        let guid = System.Guid.NewGuid()
+
+        let missingLength = desiredLength - start.Length
+
+        let generatedString =
+            guid.ToString()
+            |> fun s -> s.Replace("-", "")
+            |> Seq.truncate missingLength
+            |> Seq.map string
+            |> String.concat ""
+
+        let result = start + generatedString
+
+        if desiredLength > result.Length then
+            generateStringBasedOnGuid result desiredLength
+        else
+            result
+
+    type UserAuth =
+        { username : string
+          password : string }
+
+    let getUrl =
+        let client = new System.Net.Http.HttpClient()
+
+        fun (url: string) ->
+            task {
+                let! result = client.GetStringAsync url
+                return result.Trim()
+            }
+
+    // Gets public ip from api's, if first 3 parts match then return range
+    let getPublicIpRange () =
+        task {
+            let! ips =
+                [ getUrl "https://checkip.amazonaws.com"
+                  getUrl "https://ipinfo.io/ip"
+                  getUrl "https://api.ipify.org"
+                ] |> Task.WhenAll
+
+            let ipsMatchFirst3Parts =
+                let first3Parts (ipString: string) =
+                    ipString.Split(".") |> Seq.take 3 |> String.concat "."
+
+                let ipFirst3Parts = ips.[0] |> first3Parts
+
+                ips
+                |> Seq.forall (fun x -> x |> first3Parts = ipFirst3Parts )
+
+            if not ipsMatchFirst3Parts then
+                failwithf "Ip sources don't agree on public ip first 3 parts: %s" (String.concat ", " ips)
+
+            let sortedIps = ips |> Array.sort
+
+            let modifyLast fn (ip: string) =
+                let parts = ip.Split(".")
+
+                seq {
+                    yield! parts |> Seq.take (parts.Length - 1)
+                    yield parts |> Seq.last |> int |> fn |> string
+                } |> String.concat "."
+
+            let lowest =
+                sortedIps
+                |> Array.head
+                |> modifyLast ((fun x -> x - 10) >> max 0)
+
+            let highest =
+                sortedIps
+                |> Array.last
+                |> modifyLast ((+) 10 >> min 255 )
+
+            return lowest, highest
+        }
+
+    let createSqlServer
+        serverName
+        (location: string)
+        (rgName: string)
+        (databases: string list)
+        (userAuth : UserAuth)
+        = task {
+            // check if server exists
+            // do i need to?
+
+            report "Attempting create sql server"
+            report "Getting ad user name"
+
+            let! subscription = azure.Subscriptions.GetByIdAsync(azure.SubscriptionId)
+            let credentialName = subscription.DisplayName
+                // We're assuming the subscription name is also valid as an AD managed identity
+            report "Got credential name: %s" credentialName
+            report "Checking existing"
+
+            let publicIpRangeWork = getPublicIpRange()
+
+            let! existingServer =
+                azure.SqlServers.GetByResourceGroupAsync(rgName, serverName)
+
+            let provisionFirewallRuleName = "kita_provision"
+
+            if existingServer <> null then
+                report "Found existing SqlServer, using"
+                do! existingServer.FirewallRules.DeleteAsync(provisionFirewallRuleName)
+                let! (lowIp, highIp) = publicIpRangeWork
+                report "Allowing ips: [%s; %s]" lowIp highIp
+                let! rule =
+                    existingServer.FirewallRules
+                        .Define(provisionFirewallRuleName)
+                        .WithIPAddressRange(lowIp, highIp)
+                        .CreateAsync()
+
+                return existingServer
+            else
+                report "Requesting SqlServer: %s" serverName
+                reportSecret
+                    "Using (record this, not recoverable) auth\n\tuser: %s\n\tpassword: %s"
+                        userAuth.username
+                        userAuth.password
+
+                let! (lowIp, highIp) = publicIpRangeWork
+                report "Allowing ips: [%s; %s]" lowIp highIp
+
+                let! sqlServer =
+                    azure.SqlServers
+                        .Define(serverName)
+                        .WithRegion(location)
+                        .WithExistingResourceGroup(rgName)
+                        .WithAdministratorLogin(userAuth.username)
+                        .WithAdministratorPassword(userAuth.password)
+                        .WithActiveDirectoryAdministrator(credentialName, credential.ClientId)
+                        .WithNewFirewallRule(lowIp, highIp, provisionFirewallRuleName)
+                        .CreateAsync()
+
+                report "Created SqlServer %s" sqlServer.FullyQualifiedDomainName
+                report "SqlServer using user credential: %s" credentialName
+
+                return sqlServer
+        }
+
+    let createSqlServerRngUser
+        serverName
+        (location: string)
+        (rgName: string)
+        (databases: string list)
+        =
+        createSqlServer
+            serverName
+            location
+            rgName
+            databases
+            { username = generateStringBasedOnGuid "u" 20 // guarantee starts with letter
+              password = generateStringBasedOnGuid "1!Aa" 128 // guarantee meets validation reqs
+            }
+
+    let createSqlDatabase
+        databaseName
+        (sqlServer: ISqlServer)
+        = task {
+            report "Creating database %s on server %s" databaseName sqlServer.Name
+
+            let! existingDatabase =
+                sqlServer.Databases.GetAsync(databaseName)
+
+            if existingDatabase <> null then
+                report "Using existing database"
+
+                return existingDatabase
+            else
+                let! database =
+                    sqlServer.Databases
+                        .Define(databaseName)
+                        .WithServiceObjective(ServiceObjectiveName.Free)
+                        .CreateAsync()
+
+                report "Created database"
+
+                return database
+        }
+
+module ActiveDirectory =
+    open System
+
+    let createADGroup
+        groupName
+        = task {
+        let! group =
+            azure.AccessManagement.ActiveDirectoryGroups
+                .Define(groupName)
+                .WithEmailAlias(groupName)
+                .CreateAsync()
+
+        return group
+
+        }
+
+    let addMemberToADGroup
+        (adGroup: IActiveDirectoryGroup)
+        (memberId: string)
+        = task {
+        let! updatedGroup =
+            adGroup
+                .Update()
+                .WithMember(memberId)
+                .ApplyAsync()
+
+        return updatedGroup
+        }
+
+    open System
+    
+    /// https://github.com/MicrosoftDocs/sql-docs/issues/2323
+    /// Can't execute create user without giving sql server a
+    /// managed system identity with Directory Reader role.
+    /// To give that role, need a user with Global Admin or 
+    /// Privileged Role Administrator.
+    /// More in Notes.md
+    let buildCreateUserSqlWorkaround
+        (objectType: string)
+        (objectName: string)
+        (objectId: string)
+        =
+        report "Building create user sql"
+        report "Object id: %s" objectId
+        let guid = Guid.Parse(objectId)
+        report "Guid: %A" guid
+
+        let idBytes = guid.ToByteArray()
+        let idBytesString =
+            BitConverter.ToString(idBytes).Replace("-","")
+        let sid = $"0x{idBytesString}"
+        report "Sid: %A" sid
+
+        $"""
+create user {objectName} with SID={sid}, TYPE={objectType};
+alter role db_datareader add member {objectName};
+alter role db_datawriter add member {objectName};
+        """
+

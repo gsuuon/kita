@@ -33,8 +33,8 @@ type LogResource() =
 
 type FooProvider() =
     interface Provider with
-        member _.Run () = ()
-        member _.Launch () = ()
+        member _.Activate () = ()
+        member _.Launch () = async { return () }
 
     interface ValResourceProvider with
         member _.Provide arg =
@@ -62,11 +62,11 @@ let tryCall () =
     let valBuilder = ValResource 0
     let logBuilder = LogResource ()
 
-    let v = valBuilder.Create provider
-    let l = logBuilder.Create provider
+    let _v = valBuilder.Create provider
+    let _l = logBuilder.Create provider
 
-    let v' = create valBuilder provider
-    let l' = create logBuilder provider
+    let _v' = create valBuilder provider
+    let _l' = create logBuilder provider
 
     ()
 
@@ -142,7 +142,7 @@ let blockB =
 
         y.Log "Hi dere"
 
-        let! z = QueueResource<char> ()
+        let! _z = QueueResource<char> ()
 
         return x'
     }

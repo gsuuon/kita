@@ -12,6 +12,43 @@ open Kita.Providers.Azure.AzureNextApi.Utility
 
 type BlobPermission = BlobSasPermissions
 
+module Blobs =
+    let generateSas
+        (permission: BlobPermission)
+        expiryTime
+        (blobClient: BlobClient)
+        = task {
+
+        if not blobClient.CanGenerateSasUri then
+            failwith "Blob client can't generate Sas uri :("
+                // This shouldn't happen according to this gh comment
+                // https://github.com/Azure/azure-sdk-for-net/issues/12414#issuecomment-757047459
+                // If we hit this, then we'll need to create a new
+                // blob client using this
+                // https://docs.microsoft.com/en-us/dotnet/api/azure.storage.storagesharedkeycredential?view=azure-dotnet-preview
+
+        return blobClient.GenerateSasUri(permission, expiryTime)
+        }
+
+    let generateSasTimeout
+        (permission: BlobPermission)
+        (timeoutHrs: float)
+        (blobClient: BlobClient)
+        =
+        generateSas
+        <| permission
+        <| System.DateTimeOffset.UtcNow.AddHours(timeoutHrs)
+        <| blobClient
+
+    let generateSasInfinite
+        (permission: BlobPermission)
+        (blobClient: BlobClient)
+        =
+        generateSas
+        <| permission
+        <| System.DateTimeOffset.MaxValue
+        <| blobClient
+    
 type Blobs(connectionString: string) =
     member val BlobServiceClient = BlobServiceClient(connectionString)
 
@@ -32,27 +69,3 @@ type Blobs(connectionString: string) =
         let! containerClient = this.BlobContainerClient(containerName)
         return containerClient.GetBlobClient(blobName)
     }
-
-    static member BlobGenerateSas
-        (permission: BlobPermission)
-        timeoutHrs
-        (blobClient: BlobClient)
-        = task {
-
-        if not blobClient.CanGenerateSasUri then
-            failwith "Blob client can't generate Sas uri :("
-                // This shouldn't happen according to this gh comment
-                // https://github.com/Azure/azure-sdk-for-net/issues/12414#issuecomment-757047459
-                // If we hit this, then we'll need to create a new
-                // blob client using this
-                // https://docs.microsoft.com/en-us/dotnet/api/azure.storage.storagesharedkeycredential?view=azure-dotnet-preview
-            
-        let sasUri =
-            blobClient.GenerateSasUri
-                ( permission
-                , System.DateTimeOffset.UtcNow.AddHours(timeoutHrs)
-                )
-
-        return sasUri
-
-        }

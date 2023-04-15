@@ -5,13 +5,13 @@ type Provider =
     /// Provisions and deploys resources
     /// Provider will have been attached to every block already
     /// Called for every block this provider is attached to
-    abstract member Launch : unit -> unit
+    abstract member Launch : unit -> Async<unit>
 
-    /// Runs (activates and unblocks) resources
+    /// Activates (unblocks) resources
     /// Should extract necessary information from environment (e.g. connection string)
     /// Only called when running the block (not when launching)
     /// Called for every block this provider is attached to
-    abstract member Run : unit -> unit
+    abstract member Activate : unit -> unit
 
 type CloudResource = interface end
 
@@ -26,7 +26,7 @@ and AttachedBlock<'U> =
     { name : string
       userState : 'U
       managed : Managed<'U>
-      launch : ('U -> unit) -> unit
+      launch : unit -> Async<unit>
       run : ('U -> unit) -> unit
       path : string list }
 
@@ -143,18 +143,17 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
             { name = block.Name
               managed = managed
               userState = attached.user
-              launch = fun withAppState ->
+              launch = fun () -> async {
                 printfn "Launching block: %s" block.Name
-                attached.provider.Launch()
-                withAppState attached.user
+                do! attached.provider.Launch()
 
-                managed.nested
-                |> Map.iter
-                    (fun name nestedAttached ->
-                        nestedAttached.launch withAppState)
+                let nestedBlocks = managed.nested |> Map.toSeq
+
+                for (_name, nestedBlock) in nestedBlocks do
+                    do! nestedBlock.launch()
+              }
 
               run = fun withAppState ->
-                attached.provider.Run()
                 withAppState attached.user
 
                 managed.nested
@@ -218,6 +217,17 @@ type Block< ^Provider, ^U when 'Provider :> Provider>(name: string) =
             ctx, sNext |> addNested attached
 
     member inline _.Bind
+        // TODO
+        // This overload makes compile errors for missing resource provider interfaces
+        // much worse to read
+        // I could move this to a custom operation instead
+        // I don't actually need this to be an overload
+        // This overload is just to support using do! for nesting
+        // which seems semantically incorrect (not a zero-like type)
+        // do! is used because custom operations can't be called with pipe operators (<|)
+        // so end up needing to put parens around entire argument expression or assign to variable
+        // can i replace this with combine?
+        // then I just say routeState {} instead of do! routeState {} or customOp routeState {}
         (
             carry: BlockBindState<'Provider, _> ->
                    BlockBindState<'Provider, _>,

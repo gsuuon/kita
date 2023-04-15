@@ -4,10 +4,12 @@ storage: none
 framework: netstandard2.0, net5.0
 
 nuget Azure.Messaging.WebPubSub
+nuget EntityFrameworkCore.FSharp
 nuget Expecto >= 9.0
 nuget Farmer 1.4.0
 nuget FSharp.Core 5.0.1
 nuget Giraffe 5.0.0-rc-6 rc
+nuget Microsoft.EntityFrameworkCore.SqlServer
 nuget Microsoft.NET.Test.Sdk >= 16.0
 nuget ply 0.3.1
 nuget Azure.Identity 1.2.2
@@ -23,4 +25,5 @@ nuget Pulumi.FSharp >= 2.0
 nuget Pulumi.FSharp.Azure 3.49.0.29
 nuget Pulumi.FSharp.AzureNative 0.7.1.2
 nuget Pulumi.FSharp.Core 2.0.15
+nuget StackExchange.Redis
 nuget YoloDev.Expecto.TestSdk

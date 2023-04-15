@@ -4,6 +4,10 @@ open System.IO
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open Microsoft.EntityFrameworkCore
+open Microsoft.EntityFrameworkCore.Diagnostics
+open Microsoft.Azure.Management.AppService.Fluent
+
 open Kita.Core
 open Kita.Utility
 open Kita.Resources
@@ -11,10 +15,15 @@ open Kita.Resources.Collections
 
 open Kita.Providers.Azure
 open Kita.Providers.Azure.Client
+open Kita.Providers.Azure.Activation
 open Kita.Providers.Azure.AzurePreviousApi
 open Kita.Providers.Azure.AzureNextApi
 open Kita.Providers.Azure.Operations
 open Kita.Providers.Azure.Resources
+open Kita.Providers.Azure.Resources.Definition
+open Kita.Providers.Azure.Resources.Operation
+open Kita.Providers.Azure.Utility.LocalLog
+
 
 type InjectableLogger =
     abstract SetLogger : Logger -> unit
@@ -22,9 +31,15 @@ type InjectableLogger =
 type AzureProvider(appName, location) =
     let mutable cloudTasks = []
     let mutable provisionRequests = []
+    let mutable provisionRequestsWithApp = []
 
+    /// rgName -> saName -> unit task
     let requestProvision provision =
         provisionRequests <- provision :: provisionRequests
+
+    /// IFunctionApp -> unit task
+    let requestProvisionAfterApp provision =
+        provisionRequestsWithApp <- provision :: provisionRequestsWithApp
 
     let connectionString = Waiter<string>()
 
@@ -35,11 +50,17 @@ type AzureProvider(appName, location) =
             member _.Error x = printfn "ERROR: %s" x
         }
 
-    let mutable launched = false
-        // FIXME rework launch/run so this isn't necessary
+    let executeRequests executor requests = task {
+        let! envVariables =
+            requests
+            |> List.map executor
+            |> Task.WhenAll<(string * string) option>
 
-    member val WaitConnectionString = connectionString
-    member val OnConnection = connectionString.OnSet
+        return
+            envVariables
+            |> Array.choose id
+            |> Array.toSeq
+        }
 
     member _.Generate(conString) =
         // TODO find the RootBlock attribute which contains this provider
@@ -52,20 +73,15 @@ type AzureProvider(appName, location) =
     member _.Attach (conString: string) =
         connectionString.Set conString
         
-    member _.ExecuteProvisionRequests (rgName, saName) = task {
-        printfn "Provisioning resources"
+    member _.ExecuteProvisionRequests (rgName, saName) =
+        executeRequests
+        <| fun req -> req rgName saName
+        <| provisionRequests
 
-        let! envVariables =
-            provisionRequests
-            |> List.map (fun req -> req rgName saName)
-            |> Task.WhenAll<(string * string) option>
-
-        return
-            envVariables
-            |> Array.choose id
-            |> Array.toSeq
-
-        }
+    member _.ExecuteProvisionRequestsAfterApp (app: IFunctionApp) =
+        executeRequests
+        <| fun req -> req app
+        <| provisionRequestsWithApp
 
     member _.CloudTasks = cloudTasks
 
@@ -88,20 +104,18 @@ type AzureProvider(appName, location) =
         // Could be useful for local provider
 
         member this.Launch () =
-            if not launched then
-                launched <- true
+            provision
+                appName
+                location
+                cloudTasks
+                this.ExecuteProvisionRequests
+                this.ExecuteProvisionRequestsAfterApp
+            |> Async.AwaitTask
 
-                let work =
-                    provision
-                        appName
-                        location
-                        cloudTasks
-                        this.ExecuteProvisionRequests
-
-                work.Wait()
-
-        member this.Run () =
-            let conString = System.Environment.GetEnvironmentVariable "Kita_AzureNative_ConnectionString"
+        member this.Activate () =
+            let conString =
+                System.Environment.GetEnvironmentVariable 
+                    AzureConnectionStringVarName
 
             if conString <> null then
                 this.Attach conString
@@ -122,11 +136,8 @@ type AzureProvider(appName, location) =
                 (name, requestProvision) :> ICloudMap<'K, 'V>
 
     interface CloudLogProvider with
-        // NOTE
-        // The logger will be the last set logger
-        // Meaning if it's used in a call which doesn't set the logger
-        // It will attribute the log to the previous request
-        // Could cause problems?
+        // TODO
+        // Wrap in thread-local object or restructure entirely
         member _.Provide () =
             { new ICloudLog with
                 member _.Info x = logger.Info x
@@ -145,8 +156,8 @@ type AzureProvider(appName, location) =
 
             cloudTask
 
-    interface Definition.AzureWebPubSubProvider with
-        member this.Provide (name, config) =
+    interface AzureWebPubSubProvider with
+        member _.Provide (name, config) =
             let awps = Provision.AzureWebPubSub(name, appName)
 
             requestProvision 
@@ -165,5 +176,109 @@ type AzureProvider(appName, location) =
                   capacity = 1
                 }
 
-            awps :> Definition.IAzureWebPubSub
+            awps :> IAzureWebPubSub
         
+    interface CloudCacheProvider with
+        member _.Provide name =
+            Provision.AzureCloudCache
+                ( name
+                , requestProvision
+                , location
+                ) :> ICloudMap<_,_>
+
+
+    interface AzureDatabaseSQLProvider with
+        member _.Provide<'T when 'T :> DbContext>
+            (
+                serverName,
+                createCtx
+            ) =
+            let connectionStringEnvVarName =
+                $"Kita_Azure_DbSQL_{serverName}"
+                |> canonEnvVarName
+
+            let createOptions (conString: string) =
+                (new DbContextOptionsBuilder())
+                    .UseSqlServer(conString)
+                    .AddInterceptors(AzureConnectionInterceptor())
+                    .Options
+
+            requestProvisionAfterApp
+            <| fun app -> task {
+                report "Creating sql server.."
+                let rgName = app.ResourceGroupName
+                
+                let adGroupName = $"kita_{app.Name}_sql_{serverName}"
+                (* let waitAdGroup = task { *)
+                (*     let! adGroup = *)
+                (*         ActiveDirectory.createADGroup adGroupName *)
+                (*         (1* 403 forbidden *1) *)
+                (*         (1* subscription id not ad admin *1) *)
+                (*         (1* should i just require an ad tenant for the app? *1) *)
+                (*         (1* or app has admin rights to a tenant, and advise users *1) *)
+                (*         (1* create a new tenant just for kita apps? *1) *)
+
+                (*     let! _updated = *)
+                (*         app.SystemAssignedManagedServiceIdentityPrincipalId *)
+                (*         |> ActiveDirectory.addMemberToADGroup adGroup *)
+
+                (*     return () *)
+                (* } *)
+
+                let! sqlServer =
+                    SqlServer.createSqlServerRngUser
+                        serverName
+                        location
+                        rgName
+                        []
+                
+                // Assume that the app managed identity name is app name
+                
+                let dbName =
+                    (typeof<'T>).Name
+                        .Replace("Context","")
+                        .Replace("Db","")
+
+                report "Provisioning db: %s"dbName
+                let! db =
+                    SqlServer.createSqlDatabase
+                        dbName
+                        sqlServer
+
+                let connectionString =
+                    $"Server=tcp:{sqlServer.FullyQualifiedDomainName},1433;Initial Catalog={dbName};Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;"
+
+                let dbCtx = connectionString |> createOptions |> createCtx
+
+                report "Checking database migrations for %s" serverName
+
+                let migrations = dbCtx.Database.GetMigrations() |> Seq.toList
+                report "Found %i migrations" migrations.Length
+                // NOTE
+                // I think migrations aren't found because this dbctx type is actually different than
+                // the one which generated the migrations
+                // not sure how to get around this
+
+                let! _pendingMigrations = dbCtx.Database.GetPendingMigrationsAsync()
+
+                let pendingMigrations = Seq.toList _pendingMigrations
+
+                report "Found %i pending migrations. Applying.." pendingMigrations.Length
+
+                do! dbCtx.Database.MigrateAsync()
+                report "Migrated database %s" serverName
+                
+                (* do! waitAdGroup *)
+
+                // TODO-next add create user sql stuff here
+
+                return Some (connectionStringEnvVarName, connectionString)
+            }
+
+            let conString =
+                defaultArg
+                <| getActivationData connectionStringEnvVarName
+                <| ""
+
+            { new IAzureDatabaseSQL<'T> with
+                member _.GetContext () = conString |> createOptions |> createCtx }
